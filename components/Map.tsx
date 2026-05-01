@@ -1,16 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 
 export default function Map({ data }: any) {
-  const validData = data.filter(
-    (item: any) =>
-      item.latitude !== null &&
-      item.longitude !== null &&
-      item.latitude !== undefined &&
-      item.longitude !== undefined
-  );
-
   return (
     <MapContainer
       center={[-7.4246, 109.2396]}
@@ -19,7 +12,7 @@ export default function Map({ data }: any) {
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-      {validData.map((item: any, index: number) => (
+      {data.map((item: any, index: number) => (
         <Marker key={index} position={[item.latitude, item.longitude]}>
           <Popup>
             {item.athlete_name}
