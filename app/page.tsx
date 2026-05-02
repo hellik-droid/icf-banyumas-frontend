@@ -22,7 +22,26 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
+function calculateSpeedKmh(current: any, previous: any) {
+  if (!current || !previous) return 0;
 
+  const distanceKm = calculateDistance(
+    Number(previous.latitude),
+    Number(previous.longitude),
+    Number(current.latitude),
+    Number(current.longitude)
+  );
+
+  const timeDiffHours =
+    (new Date(current.timestamp).getTime() -
+      new Date(previous.timestamp).getTime()) /
+    1000 /
+    3600;
+
+  if (timeDiffHours <= 0) return 0;
+
+  return distanceKm / timeDiffHours;
+}
 export default function Home() {
   const [data, setData] = useState<any[]>([]);
   const [selectedAthlete, setSelectedAthlete] = useState("Atlet 1");
@@ -89,18 +108,36 @@ export default function Home() {
   const startPoint: [number, number] = [-7.4246, 109.2396];
 
   const leaderboard = useMemo(() => {
-    return latestPerAthlete
-      .map((item) => ({
+  return latestPerAthlete
+    .map((item) => {
+      const athleteHistory = validData
+        .filter((d) => d.athlete_name === item.athlete_name)
+        .sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() -
+            new Date(a.timestamp).getTime()
+        );
+
+      const current = athleteHistory[0];
+      const previous = athleteHistory[1];
+
+      const distance = calculateDistance(
+        startPoint[0],
+        startPoint[1],
+        Number(item.latitude),
+        Number(item.longitude)
+      );
+
+      const speedKmh = calculateSpeedKmh(current, previous);
+
+      return {
         ...item,
-        distance: calculateDistance(
-          startPoint[0],
-          startPoint[1],
-          Number(item.latitude),
-          Number(item.longitude)
-        ),
-      }))
-      .sort((a, b) => b.distance - a.distance);
-  }, [latestPerAthlete]);
+        distance,
+        speedKmh,
+      };
+    })
+    .sort((a, b) => b.distance - a.distance);
+}, [latestPerAthlete, validData]);
 
   return (
     <main style={{ minHeight: "100vh", background: "#020617", color: "white", padding: "24px" }}>
@@ -147,6 +184,8 @@ export default function Home() {
             <strong>#{index + 1} {item.athlete_name}</strong>
             <br />
             Jarak dari start: {item.distance.toFixed(2)} km
+            <br />
+            Kecepatan: {item.speedKmh.toFixed(1)} km/h
             <br />
             Koordinat: {item.latitude}, {item.longitude}
           </div>
