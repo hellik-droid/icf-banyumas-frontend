@@ -7,6 +7,6 @@ const MapClient = dynamic(() => import("./MapClient"), {
   ssr: false,
 });
 
-export default function Map({ data }: any) {
-  return <MapClient data={data} />;
+export default function Map({ data, selectedAthlete }: any) {
+  return <MapClient data={data} selectedAthlete={selectedAthlete} />;
 }

@@ -11,33 +11,18 @@ const API_URL = "https://icf-banyumas-backend-production.up.railway.app";
 
 export default function Home() {
   const [data, setData] = useState<any[]>([]);
+  const [selectedAthlete, setSelectedAthlete] = useState<string>("Atlet 1");
 
   const fetchTracking = async () => {
     const res = await fetch(`${API_URL}/tracking`);
     const result = await res.json();
-
-    setData((prev) => {
-      const merged = [...prev];
-
-      result.forEach((newItem: any) => {
-        const index = merged.findIndex((item) => item.id === newItem.id);
-
-        if (index >= 0) {
-          merged[index] = newItem;
-        } else {
-          merged.push(newItem);
-        }
-      });
-
-      return merged;
-    });
+    setData(result);
   };
 
   useEffect(() => {
     fetchTracking();
 
     const interval = setInterval(fetchTracking, 5000);
-
     const socket = io(API_URL);
 
     socket.on("location-update", (newData) => {
@@ -54,52 +39,56 @@ export default function Home() {
     (item) => item.latitude !== null && item.longitude !== null
   );
 
+  const leaderboard = validData.reduce((acc: any[], item) => {
+    const existing = acc.find((a) => a.athlete_name === item.athlete_name);
+    if (!existing) acc.push(item);
+    return acc;
+  }, []);
+
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#020617",
-        color: "white",
-        padding: "24px",
-      }}
-    >
+    <main style={{ minHeight: "100vh", background: "#020617", color: "white", padding: "24px" }}>
       <section style={{ marginBottom: "24px" }}>
-        <p style={{ color: "#38bdf8", fontWeight: 600 }}>
-          LIVE TRACKING SYSTEM
-        </p>
-        <h1 style={{ fontSize: "36px", margin: "8px 0" }}>
-          ICF Banyumas Race Map
-        </h1>
-        <p style={{ color: "#cbd5e1" }}>
-          Dashboard pemantauan posisi atlet secara real-time.
-        </p>
+        <p style={{ color: "#38bdf8", fontWeight: 600 }}>LIVE TRACKING SYSTEM</p>
+        <h1 style={{ fontSize: "36px", margin: "8px 0" }}>ICF Banyumas Race Map</h1>
+        <p style={{ color: "#cbd5e1" }}>Dashboard pemantauan posisi atlet secara real-time.</p>
       </section>
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: "16px",
-          marginBottom: "20px",
-        }}
-      >
-        <div style={cardStyle}>
-          <p style={labelStyle}>Total Data</p>
-          <h2>{data.length}</h2>
-        </div>
-
-        <div style={cardStyle}>
-          <p style={labelStyle}>Marker Valid</p>
-          <h2>{validData.length}</h2>
-        </div>
-
-        <div style={cardStyle}>
-          <p style={labelStyle}>Status</p>
-          <h2 style={{ color: "#22c55e" }}>LIVE</h2>
-        </div>
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "20px" }}>
+        <div style={cardStyle}><p style={labelStyle}>Total Data</p><h2>{data.length}</h2></div>
+        <div style={cardStyle}><p style={labelStyle}>Marker Valid</p><h2>{validData.length}</h2></div>
+        <div style={cardStyle}><p style={labelStyle}>Atlet Aktif</p><h2>{leaderboard.length}</h2></div>
+        <div style={cardStyle}><p style={labelStyle}>Status</p><h2 style={{ color: "#22c55e" }}>LIVE</h2></div>
       </section>
 
-      <Map data={data} />
+      <section style={{ marginBottom: "20px" }}>
+        <label style={{ color: "#cbd5e1", marginRight: "10px" }}>Auto Follow Atlet:</label>
+        <select
+          value={selectedAthlete}
+          onChange={(e) => setSelectedAthlete(e.target.value)}
+          style={{ padding: "10px", borderRadius: "8px" }}
+        >
+          {leaderboard.map((item) => (
+            <option key={item.athlete_name} value={item.athlete_name}>
+              {item.athlete_name}
+            </option>
+          ))}
+        </select>
+      </section>
+
+      <Map data={data} selectedAthlete={selectedAthlete} />
+
+      <section style={{ marginTop: "24px" }}>
+        <h2>Leaderboard Sementara</h2>
+        {leaderboard.map((item, index) => (
+          <div key={item.id} style={listStyle}>
+            <strong>#{index + 1} {item.athlete_name}</strong>
+            <br />
+            Koordinat terakhir: {item.latitude}, {item.longitude}
+            <br />
+            Update: {new Date(item.timestamp).toLocaleString("id-ID")}
+          </div>
+        ))}
+      </section>
     </main>
   );
 }
@@ -114,4 +103,12 @@ const cardStyle = {
 const labelStyle = {
   color: "#94a3b8",
   marginBottom: "8px",
+};
+
+const listStyle = {
+  background: "#111827",
+  border: "1px solid #334155",
+  padding: "14px",
+  borderRadius: "12px",
+  marginBottom: "10px",
 };

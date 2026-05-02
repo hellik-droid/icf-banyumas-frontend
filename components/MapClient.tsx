@@ -7,6 +7,7 @@ import {
   TileLayer,
   Marker,
   Popup,
+  Polyline,
   useMap,
 } from "react-leaflet";
 
@@ -26,28 +27,19 @@ const blueIcon = new L.Icon({
   popupAnchor: [0, -32],
 });
 
-function AutoFitBounds({ data }: any) {
+function AutoFollow({ athlete }: any) {
   const map = useMap();
 
-  const valid = data.filter(
-    (item: any) => item.latitude !== null && item.longitude !== null
-  );
+  if (!athlete) return null;
 
-  if (valid.length === 0) return null;
-
-  const bounds = valid.map((item: any) => [
-    Number(item.latitude),
-    Number(item.longitude),
-  ]);
-
-  map.fitBounds(bounds, {
-    padding: [40, 40],
+  map.setView([Number(athlete.latitude), Number(athlete.longitude)], 15, {
+    animate: true,
   });
 
   return null;
 }
 
-export default function MapClient({ data }: any) {
+export default function MapClient({ data, selectedAthlete }: any) {
   const validData = data.filter(
     (item: any) =>
       item.latitude !== null &&
@@ -55,85 +47,78 @@ export default function MapClient({ data }: any) {
       item.athlete_name !== null
   );
 
+  const latestPerAthlete = validData.reduce((acc: any[], item: any) => {
+    const exists = acc.find((a) => a.athlete_name === item.athlete_name);
+    if (!exists) acc.push(item);
+    return acc;
+  }, []);
+
+  const selectedLatest = latestPerAthlete.find(
+    (item: any) => item.athlete_name === selectedAthlete
+  );
+
+  const selectedTrack = validData
+    .filter((item: any) => item.athlete_name === selectedAthlete)
+    .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .map((item: any) => [Number(item.latitude), Number(item.longitude)]);
+
+  const raceRoute: [number, number][] = [
+    [-7.4246, 109.2396],
+    [-7.4215, 109.2415],
+    [-7.419, 109.244],
+    [-7.4165, 109.247],
+  ];
+
   const center: [number, number] = [-7.4246, 109.2396];
 
-  const latest = validData[0];
-
   return (
-    <div>
-      <LeafletMap
-        center={center}
-        zoom={13}
-        style={{
-          height: "550px",
-          width: "100%",
-          marginTop: "20px",
-          borderRadius: "16px",
-          overflow: "hidden",
-        }}
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    <LeafletMap
+      center={center}
+      zoom={13}
+      style={{
+        height: "600px",
+        width: "100%",
+        marginTop: "20px",
+        borderRadius: "16px",
+        overflow: "hidden",
+      }}
+    >
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-        <AutoFitBounds data={validData} />
+      <Polyline positions={raceRoute} />
 
-        {validData.map((item: any) => {
-          const position: [number, number] = [
-            Number(item.latitude),
-            Number(item.longitude),
-          ];
+      {selectedTrack.length > 1 && <Polyline positions={selectedTrack as any} />}
 
-          const isLatest = item.id === latest?.id;
+      <AutoFollow athlete={selectedLatest} />
 
-          return (
-            <Marker
-              key={item.id}
-              position={position}
-              icon={isLatest ? redIcon : blueIcon}
-            >
-              <Popup>
-                <strong>{item.athlete_name}</strong>
-                <br />
-                Latitude: {item.latitude}
-                <br />
-                Longitude: {item.longitude}
-                <br />
-                Status: {isLatest ? "Posisi terbaru" : "Data sebelumnya"}
-                <br />
-                Waktu: {new Date(item.timestamp).toLocaleString("id-ID")}
-              </Popup>
-            </Marker>
-          );
-        })}
-      </LeafletMap>
+      {latestPerAthlete.map((item: any) => {
+        const position: [number, number] = [
+          Number(item.latitude),
+          Number(item.longitude),
+        ];
 
-      <div style={{ marginTop: "20px" }}>
-        <h2 style={{ marginBottom: "12px" }}>Daftar Atlet Terpantau</h2>
+        const isSelected = item.athlete_name === selectedAthlete;
 
-        {validData.map((item: any) => {
-          const isLatest = item.id === latest?.id;
-
-          return (
-            <div
-              key={item.id}
-              style={{
-                padding: "14px",
-                marginBottom: "10px",
-                background: isLatest ? "#7f1d1d" : "#111827",
-                border: isLatest ? "1px solid #ef4444" : "1px solid #374151",
-                borderRadius: "12px",
-                color: "white",
-              }}
-            >
-              <strong>{item.athlete_name}</strong>{" "}
-              {isLatest && <span style={{ color: "#fca5a5" }}>● Terbaru</span>}
+        return (
+          <Marker
+            key={item.athlete_name}
+            position={position}
+            icon={isSelected ? redIcon : blueIcon}
+          >
+            <Popup>
+              <strong>{item.athlete_name}</strong>
               <br />
-              Koordinat: {item.latitude}, {item.longitude}
+              {isSelected ? "Sedang di-follow" : "Atlet aktif"}
+              <br />
+              Latitude: {item.latitude}
+              <br />
+              Longitude: {item.longitude}
               <br />
               Waktu: {new Date(item.timestamp).toLocaleString("id-ID")}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+    </LeafletMap>
   );
 }
