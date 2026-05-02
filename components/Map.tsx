@@ -7,6 +7,11 @@ const MapClient = dynamic(() => import("./MapClient"), {
   ssr: false,
 });
 
-export default function Map({ data, selectedAthlete }: any) {
-  return <MapClient data={data} selectedAthlete={selectedAthlete} />;
+export default function RaceMap(props: any = {}) {
+  return (
+    <MapClient
+      data={props?.data ?? []}
+      selectedAthlete={props?.selectedAthlete ?? ""}
+    />
+  );
 }

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { useEffect, useRef } from "react";
 import L from "leaflet";
 import {
   MapContainer,
@@ -13,67 +14,127 @@ import {
 
 const LeafletMap = MapContainer as any;
 
-const redIcon = new L.Icon({
-  iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
-});
+const colors = [
+  "#ef4444", "#3b82f6", "#22c55e", "#f97316", "#a855f7",
+  "#14b8a6", "#eab308", "#ec4899", "#06b6d4", "#84cc16",
+];
 
-const blueIcon = new L.Icon({
-  iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
-});
-
-const greenIcon = new L.Icon({
-  iconUrl: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
-});
+function createIcon(label: number, color: string, selected: boolean) {
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="
+        width:${selected ? "42px" : "34px"};
+        height:${selected ? "42px" : "34px"};
+        border-radius:999px;
+        background:${color};
+        color:white;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-weight:800;
+        border:4px solid ${selected ? "white" : "#020617"};
+        box-shadow:0 8px 20px rgba(0,0,0,.35);
+        transform: translate(-50%, -50%);
+      ">
+        ${label}
+      </div>
+    `,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+  });
+}
 
 function AutoFollow({ athlete }: any) {
   const map = useMap();
 
-  if (!athlete) return null;
+  useEffect(() => {
+    if (!athlete) return;
 
-  map.flyTo([Number(athlete.latitude), Number(athlete.longitude)], 15, {
-    duration: 1.5,
-  });
+    map.flyTo(
+      [Number(athlete.latitude), Number(athlete.longitude)],
+      15,
+      { duration: 1.2 }
+    );
+  }, [athlete, map]);
 
   return null;
+}
+
+function AnimatedMarker({ item, icon }: any) {
+  const markerRef = useRef<any>(null);
+  const prevPos = useRef<[number, number]>([
+    Number(item.latitude),
+    Number(item.longitude),
+  ]);
+
+  useEffect(() => {
+    const marker = markerRef.current;
+    if (!marker) return;
+
+    const start = prevPos.current;
+    const end: [number, number] = [Number(item.latitude), Number(item.longitude)];
+    let step = 0;
+    const totalSteps = 20;
+
+    const interval = setInterval(() => {
+      step++;
+
+      const lat = start[0] + (end[0] - start[0]) * (step / totalSteps);
+      const lng = start[1] + (end[1] - start[1]) * (step / totalSteps);
+
+      marker.setLatLng([lat, lng]);
+
+      if (step >= totalSteps) {
+        clearInterval(interval);
+        prevPos.current = end;
+      }
+    }, 40);
+
+    return () => clearInterval(interval);
+  }, [item.latitude, item.longitude]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[Number(item.latitude), Number(item.longitude)]}
+      icon={icon}
+    >
+      <Popup>
+        <strong>{item.athlete_name}</strong>
+        <br />
+        Latitude: {item.latitude}
+        <br />
+        Longitude: {item.longitude}
+        <br />
+        Update: {new Date(item.timestamp).toLocaleString("id-ID")}
+      </Popup>
+    </Marker>
+  );
 }
 
 export default function MapClient({ data, selectedAthlete }: any) {
   const validData = data.filter(
     (item: any) =>
+      item &&
+      item.athlete_name &&
       item.latitude !== null &&
       item.longitude !== null &&
-      item.athlete_name !== null
+      !isNaN(Number(item.latitude)) &&
+      !isNaN(Number(item.longitude))
   );
 
-  const latestPerAthlete = validData.reduce((acc: any[], item: any) => {
-    const existingIndex = acc.findIndex(
-      (a) => a.athlete_name === item.athlete_name
-    );
+  const latestMap = new globalThis.Map<string, any>();
 
-    if (existingIndex === -1) {
-      acc.push(item);
-    } else {
-      const existing = acc[existingIndex];
+  validData.forEach((item: any) => {
+    const existing = latestMap.get(item.athlete_name);
 
-      if (
-        new Date(item.timestamp).getTime() >
-        new Date(existing.timestamp).getTime()
-      ) {
-        acc[existingIndex] = item;
-      }
+    if (!existing || new Date(item.timestamp).getTime() > new Date(existing.timestamp).getTime()) {
+      latestMap.set(item.athlete_name, item);
     }
+  });
 
-    return acc;
-  }, []);
+  const latestPerAthlete = Array.from(latestMap.values()).slice(0, 10);
 
   const selectedLatest = latestPerAthlete.find(
     (item: any) => item.athlete_name === selectedAthlete
@@ -81,18 +142,22 @@ export default function MapClient({ data, selectedAthlete }: any) {
 
   const selectedTrack = validData
     .filter((item: any) => item.athlete_name === selectedAthlete)
-    .sort(
-      (a: any, b: any) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    )
+    .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
     .map((item: any) => [Number(item.latitude), Number(item.longitude)]);
 
+  // Rute lebih realistis, bukan garis lurus
   const raceRoute: [number, number][] = [
     [-7.4246, 109.2396],
+    [-7.4239, 109.2400],
     [-7.4232, 109.2408],
+    [-7.4224, 109.2412],
     [-7.4215, 109.2415],
-    [-7.419, 109.244],
-    [-7.4165, 109.247],
+    [-7.4207, 109.2422],
+    [-7.4200, 109.2431],
+    [-7.4190, 109.2440],
+    [-7.4180, 109.2451],
+    [-7.4172, 109.2460],
+    [-7.4165, 109.2470],
   ];
 
   const center: [number, number] = [-7.4246, 109.2396];
@@ -102,67 +167,40 @@ export default function MapClient({ data, selectedAthlete }: any) {
       center={center}
       zoom={13}
       style={{
-        height: "620px",
+        height: "640px",
         width: "100%",
         marginTop: "20px",
-        borderRadius: "16px",
+        borderRadius: "18px",
         overflow: "hidden",
+        border: "1px solid #1e293b",
       }}
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
       <Polyline
         positions={raceRoute}
-        pathOptions={{
-          color: "green",
-          weight: 5,
-          opacity: 0.8,
-        }}
+        pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.85 }}
       />
 
       {selectedTrack.length > 1 && (
         <Polyline
           positions={selectedTrack as any}
-          pathOptions={{
-            color: "blue",
-            weight: 4,
-            opacity: 0.9,
-          }}
+          pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.9 }}
         />
       )}
 
       <AutoFollow athlete={selectedLatest} />
 
       {latestPerAthlete.map((item: any, index: number) => {
-        const position: [number, number] = [
-          Number(item.latitude),
-          Number(item.longitude),
-        ];
-
         const isSelected = item.athlete_name === selectedAthlete;
-
-        let icon = blueIcon;
-
-        if (isSelected) {
-          icon = redIcon;
-        } else if (index % 2 === 0) {
-          icon = greenIcon;
-        }
+        const icon = createIcon(index + 1, colors[index % colors.length], isSelected);
 
         return (
-          <Marker key={item.athlete_name} position={position} icon={icon}>
-            <Popup>
-              <strong>{item.athlete_name}</strong>
-              <br />
-              Status: {isSelected ? "Sedang di-follow" : "Atlet aktif"}
-              <br />
-              Latitude: {item.latitude}
-              <br />
-              Longitude: {item.longitude}
-              <br />
-              Update: {new Date(item.timestamp).toLocaleString("id-ID")}
-            </Popup>
-          </Marker>
+          <AnimatedMarker
+            key={item.athlete_name}
+            item={item}
+            icon={icon}
+          />
         );
       })}
     </LeafletMap>
