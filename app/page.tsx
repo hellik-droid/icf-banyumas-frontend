@@ -138,7 +138,12 @@ export default function Home() {
     })
     .sort((a, b) => b.distance - a.distance);
 }, [latestPerAthlete, validData]);
-
+const routeInfo = {
+  distanceKm: 10,
+  elevationGainM: 185,
+  gradientPercent: 4.2,
+  routeName: "ICF Banyumas 10K Training Route",
+};
   return (
     <main style={{ minHeight: "100vh", background: "#020617", color: "white", padding: "24px" }}>
       <section style={{ marginBottom: "24px" }}>
@@ -170,7 +175,34 @@ export default function Home() {
 
         <span style={{ color: "#94a3b8" }}>Last update: {lastUpdate || "-"}</span>
       </section>
+<section
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "16px",
+    marginBottom: "20px",
+  }}
+>
+  <div style={cardStyle}>
+    <p style={labelStyle}>Nama Rute</p>
+    <h2>{routeInfo.routeName}</h2>
+  </div>
 
+  <div style={cardStyle}>
+    <p style={labelStyle}>Total Jarak</p>
+    <h2>{routeInfo.distanceKm} KM</h2>
+  </div>
+
+  <div style={cardStyle}>
+    <p style={labelStyle}>Elevasi</p>
+    <h2>{routeInfo.elevationGainM} m</h2>
+  </div>
+
+  <div style={cardStyle}>
+    <p style={labelStyle}>Gradient</p>
+    <h2>{routeInfo.gradientPercent}%</h2>
+  </div>
+</section>
       <RaceMap
         data={validData}
         selectedAthlete={selectedAthlete || leaderboard[0]?.athlete_name || ""}

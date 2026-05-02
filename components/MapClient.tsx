@@ -147,21 +147,58 @@ export default function MapClient({ data, selectedAthlete }: any) {
 
   // Rute lebih realistis, bukan garis lurus
   const raceRoute: [number, number][] = [
-    [-7.4246, 109.2396],
-    [-7.4239, 109.2400],
-    [-7.4232, 109.2408],
-    [-7.4224, 109.2412],
-    [-7.4215, 109.2415],
-    [-7.4207, 109.2422],
-    [-7.4200, 109.2431],
-    [-7.4190, 109.2440],
-    [-7.4180, 109.2451],
-    [-7.4172, 109.2460],
-    [-7.4165, 109.2470],
+  [-7.4246, 109.2396],
+  [-7.4242, 109.2404],
+  [-7.4236, 109.2412],
+  [-7.4231, 109.2420],
+  [-7.4224, 109.2428],
+  [-7.4217, 109.2436],
+  [-7.4210, 109.2444],
+  [-7.4203, 109.2452],
+  [-7.4196, 109.2460],
+  [-7.4188, 109.2468],
+  [-7.4180, 109.2476],
+  [-7.4172, 109.2484],
+  [-7.4165, 109.2492],
+  [-7.4158, 109.2500],
+  [-7.4152, 109.2508],
+  [-7.4146, 109.2516],
+  [-7.4141, 109.2524],
+  [-7.4137, 109.2532],
+  [-7.4134, 109.2540],
+  [-7.4132, 109.2548],
   ];
 
   const center: [number, number] = [-7.4246, 109.2396];
+const startIcon = L.divIcon({
+  className: "",
+  html: `
+    <div style="
+      background:#22c55e;
+      color:white;
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:700;
+      border:3px solid white;
+      box-shadow:0 4px 12px rgba(0,0,0,.3);
+    ">START</div>
+  `,
+});
 
+const finishIcon = L.divIcon({
+  className: "",
+  html: `
+    <div style="
+      background:#ef4444;
+      color:white;
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:700;
+      border:3px solid white;
+      box-shadow:0 4px 12px rgba(0,0,0,.3);
+    ">FINISH</div>
+  `,
+});
   return (
     <LeafletMap
       center={center}
@@ -174,6 +211,7 @@ export default function MapClient({ data, selectedAthlete }: any) {
         overflow: "hidden",
         border: "1px solid #1e293b",
       }}
+      
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
@@ -181,11 +219,18 @@ export default function MapClient({ data, selectedAthlete }: any) {
         positions={raceRoute}
         pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.85 }}
       />
+<Marker position={raceRoute[0]} icon={startIcon}>
+  <Popup>Start Route</Popup>
+</Marker>
 
+<Marker position={raceRoute[raceRoute.length - 1]} icon={finishIcon}>
+  <Popup>Finish Route</Popup>
+</Marker>
       {selectedTrack.length > 1 && (
         <Polyline
           positions={selectedTrack as any}
-          pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.9 }}
+          pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.85 }}
+          
         />
       )}
 
