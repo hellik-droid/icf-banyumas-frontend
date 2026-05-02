@@ -15,13 +15,29 @@ export default function Home() {
   const fetchTracking = async () => {
     const res = await fetch(`${API_URL}/tracking`);
     const result = await res.json();
-    setData(result);
+
+    setData((prev) => {
+      const merged = [...prev];
+
+      result.forEach((newItem: any) => {
+        const index = merged.findIndex((item) => item.id === newItem.id);
+
+        if (index >= 0) {
+          merged[index] = newItem;
+        } else {
+          merged.push(newItem);
+        }
+      });
+
+      return merged;
+    });
   };
 
   useEffect(() => {
     fetchTracking();
 
     const interval = setInterval(fetchTracking, 5000);
+
     const socket = io(API_URL);
 
     socket.on("location-update", (newData) => {
@@ -39,16 +55,34 @@ export default function Home() {
   );
 
   return (
-    <main style={{ minHeight: "100vh", background: "#020617", color: "white", padding: "24px" }}>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#020617",
+        color: "white",
+        padding: "24px",
+      }}
+    >
       <section style={{ marginBottom: "24px" }}>
-        <p style={{ color: "#38bdf8", fontWeight: 600 }}>LIVE TRACKING SYSTEM</p>
-        <h1 style={{ fontSize: "36px", margin: "8px 0" }}>ICF Banyumas Race Map</h1>
+        <p style={{ color: "#38bdf8", fontWeight: 600 }}>
+          LIVE TRACKING SYSTEM
+        </p>
+        <h1 style={{ fontSize: "36px", margin: "8px 0" }}>
+          ICF Banyumas Race Map
+        </h1>
         <p style={{ color: "#cbd5e1" }}>
           Dashboard pemantauan posisi atlet secara real-time.
         </p>
       </section>
 
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "20px" }}>
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "16px",
+          marginBottom: "20px",
+        }}
+      >
         <div style={cardStyle}>
           <p style={labelStyle}>Total Data</p>
           <h2>{data.length}</h2>
