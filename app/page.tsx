@@ -39,7 +39,7 @@ export default function Home() {
 
   return (
     <main style={{ padding: "20px", background: "#020617", minHeight: "100vh", color: "white" }}>
-      <h1>ICF Banyumas Race Map</h1>
+      <h1>ICF Banyumas Training</h1>
       <p>Live tracking atlet ICF Banyumas</p>
 
       <Map data={data} />
