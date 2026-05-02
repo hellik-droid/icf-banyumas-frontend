@@ -49,7 +49,7 @@ export default function Home() {
     <main style={{ minHeight: "100vh", background: "#020617", color: "white", padding: "24px" }}>
       <section style={{ marginBottom: "24px" }}>
         <p style={{ color: "#38bdf8", fontWeight: 600 }}>LIVE TRACKING SYSTEM</p>
-        <h1 style={{ fontSize: "36px", margin: "8px 0" }}>ICF Banyumas Race Map</h1>
+        <h1 style={{ fontSize: "36px", margin: "8px 0" }}>ICF Banyumas Training</h1>
         <p style={{ color: "#cbd5e1" }}>Dashboard pemantauan posisi atlet secara real-time.</p>
       </section>
 
