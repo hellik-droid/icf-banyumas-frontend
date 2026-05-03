@@ -12,6 +12,7 @@ export default function RaceMap(props: any = {}) {
     <MapClient
       data={props?.data ?? []}
       selectedAthlete={props?.selectedAthlete ?? ""}
+      routeData={props?.routeData ?? null}
     />
   );
 }

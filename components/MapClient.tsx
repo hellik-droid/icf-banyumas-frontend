@@ -15,8 +15,16 @@ import {
 const LeafletMap = MapContainer as any;
 
 const colors = [
-  "#ef4444", "#3b82f6", "#22c55e", "#f97316", "#a855f7",
-  "#14b8a6", "#eab308", "#ec4899", "#06b6d4", "#84cc16",
+  "#ef4444",
+  "#3b82f6",
+  "#22c55e",
+  "#f97316",
+  "#a855f7",
+  "#14b8a6",
+  "#eab308",
+  "#ec4899",
+  "#06b6d4",
+  "#84cc16",
 ];
 
 function createIcon(label: number, color: string, selected: boolean) {
@@ -45,6 +53,36 @@ function createIcon(label: number, color: string, selected: boolean) {
   });
 }
 
+const startIcon = L.divIcon({
+  className: "",
+  html: `
+    <div style="
+      background:#22c55e;
+      color:white;
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:700;
+      border:3px solid white;
+      box-shadow:0 4px 12px rgba(0,0,0,.3);
+    ">START</div>
+  `,
+});
+
+const finishIcon = L.divIcon({
+  className: "",
+  html: `
+    <div style="
+      background:#ef4444;
+      color:white;
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:700;
+      border:3px solid white;
+      box-shadow:0 4px 12px rgba(0,0,0,.3);
+    ">FINISH</div>
+  `,
+});
+
 function AutoFollow({ athlete }: any) {
   const map = useMap();
 
@@ -61,6 +99,17 @@ function AutoFollow({ athlete }: any) {
   return null;
 }
 
+function FitRoute({ route }: any) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!route || route.length === 0) return;
+    map.fitBounds(route, { padding: [40, 40] });
+  }, [route, map]);
+
+  return null;
+}
+
 function AnimatedMarker({ item, icon }: any) {
   const markerRef = useRef<any>(null);
   const prevPos = useRef<[number, number]>([
@@ -73,7 +122,11 @@ function AnimatedMarker({ item, icon }: any) {
     if (!marker) return;
 
     const start = prevPos.current;
-    const end: [number, number] = [Number(item.latitude), Number(item.longitude)];
+    const end: [number, number] = [
+      Number(item.latitude),
+      Number(item.longitude),
+    ];
+
     let step = 0;
     const totalSteps = 20;
 
@@ -113,7 +166,7 @@ function AnimatedMarker({ item, icon }: any) {
   );
 }
 
-export default function MapClient({ data, selectedAthlete }: any) {
+export default function MapClient({ data, selectedAthlete, routeData }: any) {
   const validData = data.filter(
     (item: any) =>
       item &&
@@ -129,7 +182,11 @@ export default function MapClient({ data, selectedAthlete }: any) {
   validData.forEach((item: any) => {
     const existing = latestMap.get(item.athlete_name);
 
-    if (!existing || new Date(item.timestamp).getTime() > new Date(existing.timestamp).getTime()) {
+    if (
+      !existing ||
+      new Date(item.timestamp).getTime() >
+        new Date(existing.timestamp).getTime()
+    ) {
       latestMap.set(item.athlete_name, item);
     }
   });
@@ -142,63 +199,30 @@ export default function MapClient({ data, selectedAthlete }: any) {
 
   const selectedTrack = validData
     .filter((item: any) => item.athlete_name === selectedAthlete)
-    .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .sort(
+      (a: any, b: any) =>
+        new Date(a.timestamp).getTime() -
+        new Date(b.timestamp).getTime()
+    )
     .map((item: any) => [Number(item.latitude), Number(item.longitude)]);
 
-  // Rute lebih realistis, bukan garis lurus
-  const raceRoute: [number, number][] = [
-  [-7.4246, 109.2396],
-  [-7.4242, 109.2404],
-  [-7.4236, 109.2412],
-  [-7.4231, 109.2420],
-  [-7.4224, 109.2428],
-  [-7.4217, 109.2436],
-  [-7.4210, 109.2444],
-  [-7.4203, 109.2452],
-  [-7.4196, 109.2460],
-  [-7.4188, 109.2468],
-  [-7.4180, 109.2476],
-  [-7.4172, 109.2484],
-  [-7.4165, 109.2492],
-  [-7.4158, 109.2500],
-  [-7.4152, 109.2508],
-  [-7.4146, 109.2516],
-  [-7.4141, 109.2524],
-  [-7.4137, 109.2532],
-  [-7.4134, 109.2540],
-  [-7.4132, 109.2548],
+  const fallbackRoute: [number, number][] = [
+    [-7.4098, 109.2428],
+    [-7.4028, 109.2398],
+    [-7.3942, 109.2372],
+    [-7.3844, 109.2346],
+    [-7.3735, 109.2324],
+    [-7.3615, 109.2306],
+    [-7.3485, 109.2293],
+    [-7.336, 109.2286],
+    [-7.318161, 109.228742],
   ];
 
-  const center: [number, number] = [-7.4246, 109.2396];
-const startIcon = L.divIcon({
-  className: "",
-  html: `
-    <div style="
-      background:#22c55e;
-      color:white;
-      padding:6px 10px;
-      border-radius:999px;
-      font-weight:700;
-      border:3px solid white;
-      box-shadow:0 4px 12px rgba(0,0,0,.3);
-    ">START</div>
-  `,
-});
+  const raceRoute: [number, number][] =
+    routeData && routeData.length > 0 ? routeData : fallbackRoute;
 
-const finishIcon = L.divIcon({
-  className: "",
-  html: `
-    <div style="
-      background:#ef4444;
-      color:white;
-      padding:6px 10px;
-      border-radius:999px;
-      font-weight:700;
-      border:3px solid white;
-      box-shadow:0 4px 12px rgba(0,0,0,.3);
-    ">FINISH</div>
-  `,
-});
+  const center: [number, number] = [-7.4246, 109.2396];
+
   return (
     <LeafletMap
       center={center}
@@ -211,26 +235,28 @@ const finishIcon = L.divIcon({
         overflow: "hidden",
         border: "1px solid #1e293b",
       }}
-      
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+      <FitRoute route={raceRoute} />
 
       <Polyline
         positions={raceRoute}
         pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.85 }}
       />
-<Marker position={raceRoute[0]} icon={startIcon}>
-  <Popup>Start Route</Popup>
-</Marker>
 
-<Marker position={raceRoute[raceRoute.length - 1]} icon={finishIcon}>
-  <Popup>Finish Route</Popup>
-</Marker>
+      <Marker position={raceRoute[0]} icon={startIcon}>
+        <Popup>Start: Rektorat UNSOED</Popup>
+      </Marker>
+
+      <Marker position={raceRoute[raceRoute.length - 1]} icon={finishIcon}>
+        <Popup>Finish: Bundaran Baturraden</Popup>
+      </Marker>
+
       {selectedTrack.length > 1 && (
         <Polyline
           positions={selectedTrack as any}
-          pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.85 }}
-          
+          pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.9 }}
         />
       )}
 
@@ -238,7 +264,11 @@ const finishIcon = L.divIcon({
 
       {latestPerAthlete.map((item: any, index: number) => {
         const isSelected = item.athlete_name === selectedAthlete;
-        const icon = createIcon(index + 1, colors[index % colors.length], isSelected);
+        const icon = createIcon(
+          index + 1,
+          colors[index % colors.length],
+          isSelected
+        );
 
         return (
           <AnimatedMarker

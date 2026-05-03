@@ -55,25 +55,26 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchInitialData();
+  fetchInitialData();
+  fetchRoute();
 
-    const socket = io(API_URL);
+  const socket = io(API_URL);
 
-    socket.on("connect", () => {
-      console.log("Realtime connected");
-    });
+  socket.on("connect", () => {
+    console.log("Realtime connected");
+  });
 
-    socket.on("location-update", (newData) => {
-      if (!newData?.latitude || !newData?.longitude || !newData?.athlete_name) return;
+  socket.on("location-update", (newData) => {
+    if (!newData?.latitude || !newData?.longitude || !newData?.athlete_name) return;
 
-      setData((prev) => [newData, ...prev]);
-      setLastUpdate(new Date().toLocaleTimeString("id-ID"));
-    });
+    setData((prev) => [newData, ...prev]);
+    setLastUpdate(new Date().toLocaleTimeString("id-ID"));
+  });
 
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  return () => {
+    socket.disconnect();
+  };
+}, []);
 
   const validData = useMemo(() => {
     return data.filter(
@@ -203,10 +204,39 @@ const routeInfo = {
     <h2>{routeInfo.gradientPercent}%</h2>
   </div>
 </section>
-      <RaceMap
-        data={validData}
-        selectedAthlete={selectedAthlete || leaderboard[0]?.athlete_name || ""}
-      />
+      <section
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "16px",
+    marginBottom: "20px",
+  }}
+>
+  <div style={cardStyle}>
+    <p style={labelStyle}>Rute</p>
+    <h2>{routeInfo.routeName}</h2>
+  </div>
+
+  <div style={cardStyle}>
+    <p style={labelStyle}>Total Jarak</p>
+    <h2>{routeInfo.distanceKm.toFixed(2)} KM</h2>
+  </div>
+
+  <div style={cardStyle}>
+    <p style={labelStyle}>Elevasi Naik</p>
+    <h2>{routeInfo.elevationGainM.toFixed(0)} m</h2>
+  </div>
+
+  <div style={cardStyle}>
+    <p style={labelStyle}>Gradient Rata-rata</p>
+    <h2>{routeInfo.gradientPercent.toFixed(1)}%</h2>
+  </div>
+</section>
+<RaceMap
+  data={validData}
+  selectedAthlete={selectedAthlete || leaderboard[0]?.athlete_name || ""}
+  routeData={routeData}
+/>
 
       <section style={{ marginTop: "24px" }}>
         <h2 style={{ marginBottom: "12px" }}>Leaderboard Sementara</h2>
@@ -245,4 +275,57 @@ const listStyle = {
   padding: "14px",
   borderRadius: "12px",
   marginBottom: "10px",
+};
+const [routeData, setRouteData] = useState<any>(null);
+const [routeInfo, setRouteInfo] = useState({
+  routeName: "Rektorat UNSOED - Bundaran Baturraden",
+  distanceKm: 0,
+  elevationGainM: 0,
+  gradientPercent: 0,
+});
+const fetchRoute = async () => {
+  const apiKey = process.env.NEXT_PUBLIC_ORS_API_KEY;
+
+  const body = {
+    coordinates: [
+      [109.2428, -7.4098], // Rektorat UNSOED
+      [109.228742, -7.318161], // Bundaran Baturraden
+    ],
+    elevation: true,
+  };
+
+  const res = await fetch(
+    "https://api.openrouteservice.org/v2/directions/cycling-regular/geojson",
+    {
+      method: "POST",
+      headers: {
+        Authorization: apiKey || "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  const json = await res.json();
+
+  const feature = json.features?.[0];
+  const summary = feature?.properties?.summary;
+
+  const coords = feature.geometry.coordinates.map((c: any) => [
+    c[1],
+    c[0],
+  ]);
+
+  const distanceKm = summary.distance / 1000;
+  const elevationGainM = feature.properties.ascent || 0;
+  const gradientPercent = elevationGainM / (distanceKm * 1000) * 100;
+
+  setRouteData(coords);
+
+  setRouteInfo({
+    routeName: "Rektorat UNSOED - Bundaran Baturraden",
+    distanceKm,
+    elevationGainM,
+    gradientPercent,
+  });
 };
