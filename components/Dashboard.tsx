@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [isReplay, setIsReplay] = useState(false);
   const [replayIndex, setReplayIndex] = useState(0);
   const [now, setNow] = useState(Date.now());
+  const [showAthleteCard, setShowAthleteCard] = useState(true);
 
   async function fetchAll() {
     try {
@@ -46,6 +47,7 @@ export default function Dashboard() {
 
       if (!selectedAthlete && leaderJson?.data?.length > 0) {
         setSelectedAthlete(leaderJson.data[0].athlete_name);
+        setShowAthleteCard(true);
       }
     } catch (error) {
       console.error("Fetch error:", error);
@@ -59,6 +61,7 @@ export default function Dashboard() {
 
     socket.on("location-update", (newData) => {
       setTracking((prev) => [newData, ...prev]);
+
       fetch(`${API_URL}/pro/leaderboard?raceId=1`)
         .then((res) => res.json())
         .then((json) => setLeaderboard(json?.data || []));
@@ -103,12 +106,20 @@ export default function Dashboard() {
     (item) => item.athlete_name === selectedAthlete
   );
 
+  const selectedLatest =
+    selectedData.length > 0 ? selectedData[selectedData.length - 1] : null;
+
   const firstTime =
     selectedData.length > 0 ? new Date(selectedData[0].timestamp).getTime() : 0;
 
   const elapsedTime = firstTime ? formatDuration(now - firstTime) : "00:00:00";
 
   const totalDistance = routeInfo?.distanceKm || 1;
+
+  function handleSelectAthlete(name: string) {
+    setSelectedAthlete(name);
+    setShowAthleteCard(true);
+  }
 
   return (
     <main
@@ -148,7 +159,9 @@ export default function Dashboard() {
             }}
           />
           <button style={iconButton}>⚙</button>
-          <button onClick={fetchAll} style={iconButton}>↻</button>
+          <button onClick={fetchAll} style={iconButton}>
+            ↻
+          </button>
         </div>
 
         <PanelTitle title="Points of interest" />
@@ -163,7 +176,7 @@ export default function Dashboard() {
           {filteredAthletes.map((item, index) => (
             <button
               key={item.athlete_name}
-              onClick={() => setSelectedAthlete(item.athlete_name)}
+              onClick={() => handleSelectAthlete(item.athlete_name)}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -197,6 +210,7 @@ export default function Dashboard() {
           selectedAthlete={selectedAthlete}
           route={routeInfo?.route || []}
           checkpoints={routeInfo?.checkpoints || []}
+          onSelectAthlete={handleSelectAthlete}
         />
 
         <div
@@ -213,35 +227,91 @@ export default function Dashboard() {
           <button style={mapButton}>Recenter selection</button>
         </div>
 
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            bottom: 24,
-            transform: "translateX(-50%)",
-            width: "560px",
-            background: "rgba(15, 23, 42, 0.82)",
-            color: "white",
-            borderRadius: "18px",
-            padding: "18px",
-            zIndex: 800,
-            backdropFilter: "blur(8px)",
-            boxShadow: "0 20px 50px rgba(0,0,0,.35)",
-          }}
-        >
-          <h2 style={{ margin: 0 }}>ICF Banyumas Training</h2>
-          <p style={{ margin: "8px 0", color: "#cbd5e1" }}>
-            Banyumas · {leaderboard.length} athletes · {totalDistance} KM event
-          </p>
-          <strong>
-            Selected: {selectedAthlete || "-"} · Elapsed: {elapsedTime}
-          </strong>
-          <div style={{ marginTop: 8, color: "#bae6fd" }}>
-            Distance: {selectedLeader?.distance_km || 0} / {totalDistance} KM ·
-            Speed: {selectedLeader?.speed_kmh || 0} km/h · ETA:{" "}
-            {selectedLeader?.eta_minutes || 0} min
+        {showAthleteCard && selectedAthlete && (
+          <div
+            style={{
+              position: "absolute",
+              right: 24,
+              top: 24,
+              width: "420px",
+              background: "rgba(15, 23, 42, 0.9)",
+              color: "white",
+              borderRadius: "18px",
+              padding: "18px",
+              zIndex: 900,
+              backdropFilter: "blur(8px)",
+              boxShadow: "0 20px 50px rgba(0,0,0,.35)",
+              border: "1px solid rgba(255,255,255,.12)",
+            }}
+          >
+            <button
+              onClick={() => setShowAthleteCard(false)}
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 12,
+                width: 30,
+                height: 30,
+                borderRadius: "999px",
+                border: "none",
+                background: "rgba(255,255,255,.15)",
+                color: "white",
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              ×
+            </button>
+
+            <h2 style={{ margin: "0 36px 8px 0" }}>{selectedAthlete}</h2>
+
+            <p style={{ margin: "0 0 14px 0", color: "#cbd5e1" }}>
+              Detail posisi atlet real-time
+            </p>
+
+            <div style={detailGrid}>
+              <DetailItem
+                label="Jarak ditempuh"
+                value={`${selectedLeader?.distance_km || 0} / ${totalDistance} KM`}
+              />
+              <DetailItem
+                label="Kecepatan"
+                value={`${selectedLeader?.speed_kmh || 0} km/h`}
+              />
+              <DetailItem label="Waktu tempuh" value={elapsedTime} />
+              <DetailItem
+                label="ETA"
+                value={`${selectedLeader?.eta_minutes || 0} min`}
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: 14,
+                padding: 12,
+                borderRadius: 12,
+                background: "rgba(2, 6, 23, .45)",
+                border: "1px solid rgba(148, 163, 184, .25)",
+              }}
+            >
+              <div style={{ color: "#93c5fd", fontWeight: 700 }}>
+                Koordinat lokasi atlet
+              </div>
+              <div style={{ marginTop: 6, color: "#e0f2fe" }}>
+                Lat: {selectedLatest?.latitude || "-"}
+              </div>
+              <div style={{ marginTop: 4, color: "#e0f2fe" }}>
+                Lng: {selectedLatest?.longitude || "-"}
+              </div>
+              <div style={{ marginTop: 8, color: "#94a3b8", fontSize: 13 }}>
+                Last update:{" "}
+                {selectedLatest?.timestamp
+                  ? new Date(selectedLatest.timestamp).toLocaleString("id-ID")
+                  : "-"}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <footer
@@ -250,7 +320,7 @@ export default function Dashboard() {
           background: "#f8fafc",
           borderTop: "1px solid #cbd5e1",
           display: "grid",
-          gridTemplateColumns: "140px 1fr 240px",
+          gridTemplateColumns: "140px 1fr 260px",
           alignItems: "center",
           gap: "18px",
           padding: "12px 20px",
@@ -319,6 +389,30 @@ function PoiItem({ label }: { label: string }) {
     </div>
   );
 }
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        background: "rgba(2, 6, 23, .45)",
+        border: "1px solid rgba(148, 163, 184, .25)",
+        borderRadius: 12,
+        padding: 12,
+      }}
+    >
+      <div style={{ color: "#94a3b8", fontSize: 13 }}>{label}</div>
+      <div style={{ color: "white", fontSize: 18, fontWeight: 800, marginTop: 5 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+const detailGrid = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "10px",
+};
 
 const iconButton = {
   width: "48px",

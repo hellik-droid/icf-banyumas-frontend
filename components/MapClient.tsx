@@ -49,7 +49,7 @@ function createAthleteIcon(label: string, color: string, selected: boolean) {
         ● ${label}
       </div>
     `,
-    iconSize: [120, 34],
+    iconSize: [140, 34],
     iconAnchor: [20, 17],
   });
 }
@@ -104,7 +104,7 @@ function FitRoute({ route }: any) {
   return null;
 }
 
-function AnimatedMarker({ item, icon }: any) {
+function AnimatedMarker({ item, icon, onClick }: any) {
   const markerRef = useRef<any>(null);
   const prevPos = useRef<[number, number]>([
     Number(item.latitude),
@@ -146,13 +146,18 @@ function AnimatedMarker({ item, icon }: any) {
       ref={markerRef}
       position={[Number(item.latitude), Number(item.longitude)]}
       icon={icon}
+      eventHandlers={{
+        click: () => onClick(item.athlete_name),
+      }}
     >
       <Popup>
         <strong>{item.athlete_name}</strong>
         <br />
         Speed: {item.speed || 0} km/h
         <br />
-        {item.latitude}, {item.longitude}
+        Lat: {item.latitude}
+        <br />
+        Lng: {item.longitude}
         <br />
         {new Date(item.timestamp).toLocaleString("id-ID")}
       </Popup>
@@ -160,7 +165,12 @@ function AnimatedMarker({ item, icon }: any) {
   );
 }
 
-export default function MapClient({ data, selectedAthlete, route }: any) {
+export default function MapClient({
+  data,
+  selectedAthlete,
+  route,
+  onSelectAthlete,
+}: any) {
   const fallbackRoute: [number, number][] = [
     [-7.4564651, 109.2621908],
     [-7.4563547, 109.2626408],
@@ -300,6 +310,7 @@ export default function MapClient({ data, selectedAthlete, route }: any) {
             key={item.athlete_name}
             item={item}
             icon={icon}
+            onClick={onSelectAthlete}
           />
         );
       })}
