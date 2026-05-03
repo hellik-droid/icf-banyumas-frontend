@@ -28,76 +28,54 @@ const colors = [
   "#84cc16",
 ];
 
-function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-}
-
-function getSpeedColor(speed: number) {
-  if (speed > 25) return "#dc2626";
-  if (speed > 18) return "#f97316";
-  if (speed > 12) return "#eab308";
-  if (speed > 6) return "#22c55e";
-  return "#3b82f6";
-}
-
-function createIcon(label: number, color: string, selected: boolean) {
+function createAthleteIcon(label: string, color: string, selected: boolean) {
   return L.divIcon({
     className: "",
     html: `
       <div style="
-        width:${selected ? "42px" : "34px"};
-        height:${selected ? "42px" : "34px"};
-        border-radius:999px;
-        background:${color};
-        color:white;
         display:flex;
         align-items:center;
-        justify-content:center;
-        font-weight:800;
-        border:4px solid ${selected ? "white" : "#020617"};
-        box-shadow:0 8px 20px rgba(0,0,0,.35);
-        transform: translate(-50%, -50%);
-      ">
-        ${label}
-      </div>
-    `,
-    iconSize: [42, 42],
-    iconAnchor: [21, 21],
-  });
-}
-
-function createCheckpointIcon(label: string) {
-  return L.divIcon({
-    className: "",
-    html: `
-      <div style="
-        background:#0f172a;
+        gap:6px;
+        background:${selected ? "#ef4444" : color};
         color:white;
         padding:6px 10px;
         border-radius:999px;
-        font-weight:700;
-        border:3px solid #38bdf8;
-        box-shadow:0 4px 12px rgba(0,0,0,.35);
+        font-weight:800;
+        border:3px solid white;
+        box-shadow:0 8px 20px rgba(0,0,0,.35);
+        white-space:nowrap;
+        font-size:12px;
+      ">
+        ● ${label}
+      </div>
+    `,
+    iconSize: [120, 34],
+    iconAnchor: [20, 17],
+  });
+}
+
+function createPoiIcon(label: string) {
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="
+        background:#111827;
+        color:white;
+        padding:6px 9px;
+        border-radius:4px;
+        font-weight:800;
+        border:2px solid white;
+        box-shadow:0 6px 16px rgba(0,0,0,.35);
+        font-size:11px;
         white-space:nowrap;
       ">
         ${label}
       </div>
     `,
+    iconSize: [70, 30],
+    iconAnchor: [35, 15],
   });
 }
-
-const startIcon = createCheckpointIcon("START");
-const finishIcon = createCheckpointIcon("FINISH");
 
 function AutoFollow({ athlete }: any) {
   const map = useMap();
@@ -107,8 +85,8 @@ function AutoFollow({ athlete }: any) {
 
     map.flyTo(
       [Number(athlete.latitude), Number(athlete.longitude)],
-      17,
-      { duration: 1.2 }
+      16,
+      { duration: 1.1 }
     );
   }, [athlete, map]);
 
@@ -119,8 +97,8 @@ function FitRoute({ route }: any) {
   const map = useMap();
 
   useEffect(() => {
-    if (!route || route.length === 0) return;
-    map.fitBounds(route, { padding: [40, 40] });
+    if (!route || route.length < 2) return;
+    map.fitBounds(route, { padding: [50, 50] });
   }, [route, map]);
 
   return null;
@@ -144,7 +122,7 @@ function AnimatedMarker({ item, icon }: any) {
     ];
 
     let step = 0;
-    const totalSteps = 20;
+    const totalSteps = 25;
 
     const interval = setInterval(() => {
       step++;
@@ -158,7 +136,7 @@ function AnimatedMarker({ item, icon }: any) {
         clearInterval(interval);
         prevPos.current = end;
       }
-    }, 40);
+    }, 35);
 
     return () => clearInterval(interval);
   }, [item.latitude, item.longitude]);
@@ -172,17 +150,29 @@ function AnimatedMarker({ item, icon }: any) {
       <Popup>
         <strong>{item.athlete_name}</strong>
         <br />
-        Latitude: {item.latitude}
+        Speed: {item.speed || 0} km/h
         <br />
-        Longitude: {item.longitude}
+        {item.latitude}, {item.longitude}
         <br />
-        Update: {new Date(item.timestamp).toLocaleString("id-ID")}
+        {new Date(item.timestamp).toLocaleString("id-ID")}
       </Popup>
     </Marker>
   );
 }
 
-export default function MapClient({ data, selectedAthlete }: any) {
+export default function MapClient({ data, selectedAthlete, route }: any) {
+  const fallbackRoute: [number, number][] = [
+    [-7.4564651, 109.2621908],
+    [-7.4563547, 109.2626408],
+    [-7.4554416, 109.262382],
+    [-7.4553538, 109.261572],
+    [-7.4564828, 109.2614795],
+    [-7.456474, 109.2622385],
+  ];
+
+  const raceRoute: [number, number][] =
+    route && route.length > 0 ? route : fallbackRoute;
+
   const validData = data.filter(
     (item: any) =>
       item &&
@@ -207,7 +197,7 @@ export default function MapClient({ data, selectedAthlete }: any) {
     }
   });
 
-  const latestPerAthlete = Array.from(latestMap.values()).slice(0, 10);
+  const latestPerAthlete = Array.from(latestMap.values()).slice(0, 30);
 
   const selectedLatest = latestPerAthlete.find(
     (item: any) => item.athlete_name === selectedAthlete
@@ -222,67 +212,19 @@ export default function MapClient({ data, selectedAthlete }: any) {
     )
     .map((item: any) => [Number(item.latitude), Number(item.longitude)]);
 
-  const speedPoints = validData
-    .filter((item: any) => item.athlete_name === selectedAthlete)
-    .sort(
-      (a: any, b: any) =>
-        new Date(a.timestamp).getTime() -
-        new Date(b.timestamp).getTime()
-    )
-    .map((item: any, index: number, arr: any[]) => {
-      if (index === 0) return { ...item, speed: 0 };
-
-      const prev = arr[index - 1];
-
-      const dist = distanceKm(
-        Number(prev.latitude),
-        Number(prev.longitude),
-        Number(item.latitude),
-        Number(item.longitude)
-      );
-
-      const hours =
-        (new Date(item.timestamp).getTime() -
-          new Date(prev.timestamp).getTime()) /
-        1000 /
-        3600;
-
-      let speed = hours > 0 ? dist / hours : 0;
-
-      if (speed > 60) speed = 0;
-
-      return { ...item, speed };
-    });
-
-  const raceRoute: [number, number][] = [
-    [-7.4564651, 109.2621908],
-    [-7.4563547, 109.2626408],
-    [-7.4554416, 109.262382],
-    [-7.4553538, 109.261572],
-    [-7.4564828, 109.2614795],
-    [-7.456474, 109.2622385],
-  ];
-
-  const checkpointPositions: [number, number][] = [
-    raceRoute[0],
-    raceRoute[Math.floor(raceRoute.length * 0.25)],
-    raceRoute[Math.floor(raceRoute.length * 0.5)],
-    raceRoute[Math.floor(raceRoute.length * 0.75)],
-    raceRoute[raceRoute.length - 1],
-  ];
+  const cp1 = raceRoute[Math.floor(raceRoute.length * 0.25)];
+  const cp2 = raceRoute[Math.floor(raceRoute.length * 0.5)];
+  const cp3 = raceRoute[Math.floor(raceRoute.length * 0.75)];
 
   return (
     <LeafletMap
       center={raceRoute[0]}
-      zoom={17}
+      zoom={13}
       style={{
-        height: "640px",
+        height: "100%",
         width: "100%",
-        marginTop: "20px",
-        borderRadius: "18px",
-        overflow: "hidden",
-        border: "1px solid #1e293b",
       }}
+      zoomControl={true}
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
@@ -293,65 +235,62 @@ export default function MapClient({ data, selectedAthlete }: any) {
         pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.85 }}
       />
 
-      <Marker position={raceRoute[0]} icon={startIcon}>
+      <Marker position={raceRoute[0]} icon={createPoiIcon("START")}>
         <Popup>Start</Popup>
       </Marker>
 
-      <Marker position={raceRoute[raceRoute.length - 1]} icon={finishIcon}>
+      {cp1 && (
+        <Marker position={cp1} icon={createPoiIcon("CP1")}>
+          <Popup>Checkpoint 1</Popup>
+        </Marker>
+      )}
+
+      {cp2 && (
+        <Marker position={cp2} icon={createPoiIcon("CP2")}>
+          <Popup>Checkpoint 2</Popup>
+        </Marker>
+      )}
+
+      {cp3 && (
+        <Marker position={cp3} icon={createPoiIcon("CP3")}>
+          <Popup>Checkpoint 3</Popup>
+        </Marker>
+      )}
+
+      <Marker
+        position={raceRoute[raceRoute.length - 1]}
+        icon={createPoiIcon("FINISH")}
+      >
         <Popup>Finish</Popup>
       </Marker>
-
-      {checkpointPositions.map((pos, index) => {
-        if (index === 0 || index === checkpointPositions.length - 1) {
-          return null;
-        }
-
-        return (
-          <Marker
-            key={`checkpoint-${index}`}
-            position={pos}
-            icon={createCheckpointIcon(`CP ${index}`)}
-          >
-            <Popup>Checkpoint {index}</Popup>
-          </Marker>
-        );
-      })}
 
       {selectedTrack.length > 1 && (
         <Polyline
           positions={selectedTrack as any}
-          pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.9 }}
+          pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.95 }}
         />
       )}
 
-      {speedPoints.map((point: any, index: number) => (
+      {selectedTrack.map((pos: any, index: number) => (
         <CircleMarker
-          key={`speed-${index}`}
-          center={[Number(point.latitude), Number(point.longitude)]}
-          radius={7}
+          key={`track-${index}`}
+          center={pos}
+          radius={5}
           pathOptions={{
-            color: getSpeedColor(point.speed),
-            fillColor: getSpeedColor(point.speed),
-            fillOpacity: 0.8,
+            color: "#0ea5e9",
+            fillColor: "#0ea5e9",
+            fillOpacity: 0.7,
             weight: 2,
           }}
-        >
-          <Popup>
-            <strong>{point.athlete_name}</strong>
-            <br />
-            Speed: {point.speed.toFixed(1)} km/h
-            <br />
-            {point.latitude}, {point.longitude}
-          </Popup>
-        </CircleMarker>
+        />
       ))}
 
       <AutoFollow athlete={selectedLatest} />
 
       {latestPerAthlete.map((item: any, index: number) => {
         const isSelected = item.athlete_name === selectedAthlete;
-        const icon = createIcon(
-          index + 1,
+        const icon = createAthleteIcon(
+          `${index + 1}. ${item.athlete_name}`,
           colors[index % colors.length],
           isSelected
         );
