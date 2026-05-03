@@ -9,8 +9,17 @@ import {
   Marker,
   Popup,
   Polyline,
+  CircleMarker,
   useMap,
 } from "react-leaflet";
+
+function getSpeedColor(speed: number) {
+  if (speed >= 30) return "#ef4444"; // cepat
+  if (speed >= 20) return "#f97316";
+  if (speed >= 10) return "#eab308";
+  if (speed >= 5) return "#22c55e";
+  return "#3b82f6"; // lambat
+}
 
 const LeafletMap = MapContainer as any;
 
@@ -154,7 +163,19 @@ function AnimatedMarker({ item, icon }: any) {
     </Marker>
   );
 }
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
 
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
 export default function MapClient({ data, selectedAthlete }: any) {
   const validData = data.filter(
     (item: any) =>
@@ -194,7 +215,34 @@ export default function MapClient({ data, selectedAthlete }: any) {
         new Date(b.timestamp).getTime()
     )
     .map((item: any) => [Number(item.latitude), Number(item.longitude)]);
+const speedPoints = validData
+  .filter((item: any) => item.athlete_name === selectedAthlete)
+  .sort(
+    (a: any, b: any) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+  .map((item: any, index: number, arr: any[]) => {
+    if (index === 0) return { ...item, speed: 0 };
 
+    const prev = arr[index - 1];
+
+    const distKm = distanceKm(
+      Number(prev.latitude),
+      Number(prev.longitude),
+      Number(item.latitude),
+      Number(item.longitude)
+    );
+
+    const hours =
+      (new Date(item.timestamp).getTime() -
+        new Date(prev.timestamp).getTime()) /
+      1000 /
+      3600;
+
+    const speed = hours > 0 ? distKm / hours : 0;
+
+    return { ...item, speed };
+  });
 const raceRoute: [number, number][] = [
   [-7.4564651, 109.2621908],
   [-7.4563547, 109.2626408],
@@ -238,7 +286,27 @@ const raceRoute: [number, number][] = [
           pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.9 }}
         />
       )}
-
+{speedPoints.map((point: any, index: number) => (
+  <CircleMarker
+    key={`speed-${index}`}
+    center={[Number(point.latitude), Number(point.longitude)]}
+    radius={7}
+    pathOptions={{
+      color: getSpeedColor(point.speed),
+      fillColor: getSpeedColor(point.speed),
+      fillOpacity: 0.8,
+      weight: 2,
+    }}
+  >
+    <Popup>
+      <strong>{point.athlete_name}</strong>
+      <br />
+      Speed: {point.speed.toFixed(1)} km/h
+      <br />
+      {point.latitude}, {point.longitude}
+    </Popup>
+  </CircleMarker>
+))}
       <AutoFollow athlete={selectedLatest} />
 
       {latestPerAthlete.map((item: any, index: number) => {

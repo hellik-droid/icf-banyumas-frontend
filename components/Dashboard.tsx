@@ -130,11 +130,13 @@ export default function Dashboard() {
           if (hours > 0) speedKmh = dist / hours;
         }
 
-        return {
-          ...item,
-          totalDistance,
-          speedKmh,
-        };
+return {
+  ...item,
+  totalDistance,
+  speedKmh,
+  paceMinKm: speedKmh > 0 ? 60 / speedKmh : 0,
+  status: speedKmh > 0 ? "MOVING" : "STOPPED",
+};
       })
       .sort((a, b) => b.totalDistance - a.totalDistance);
   }, [latestPerAthlete, validData]);
@@ -242,23 +244,58 @@ export default function Dashboard() {
 
       <RaceMap data={validData} selectedAthlete={selectedAthlete} />
 
-      <section style={{ marginTop: "24px" }}>
-        <h2>Leaderboard Sementara</h2>
+<section style={{ marginTop: "24px" }}>
+  <h2>Official Race Ranking</h2>
 
-        {leaderboard.map((item, index) => (
-          <div key={item.athlete_name} style={listStyle}>
-            <strong>
-              #{index + 1} {item.athlete_name}
-            </strong>
-            <br />
-            Jarak dari start: {item.totalDistance.toFixed(2)} km
-            <br />
-            Kecepatan: {item.speedKmh.toFixed(1)} km/h
-            <br />
-            Koordinat: {item.latitude}, {item.longitude}
-          </div>
-        ))}
-      </section>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "70px 1fr 130px 130px 130px 120px",
+      gap: "12px",
+      background: "#0f172a",
+      padding: "14px",
+      borderRadius: "12px",
+      color: "#94a3b8",
+      fontWeight: 700,
+      marginBottom: "10px",
+    }}
+  >
+    <span>Rank</span>
+    <span>Atlet</span>
+    <span>Distance</span>
+    <span>Speed</span>
+    <span>Pace</span>
+    <span>Status</span>
+  </div>
+
+  {leaderboard.map((item, index) => (
+    <div
+      key={item.athlete_name}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "70px 1fr 130px 130px 130px 120px",
+        gap: "12px",
+        background: index === 0 ? "#1e3a8a" : "#111827",
+        border: index === 0 ? "1px solid #60a5fa" : "1px solid #334155",
+        padding: "14px",
+        borderRadius: "12px",
+        marginBottom: "10px",
+        alignItems: "center",
+      }}
+    >
+      <strong>#{index + 1}</strong>
+      <strong>{item.athlete_name}</strong>
+      <span>{item.totalDistance.toFixed(2)} km</span>
+      <span>{item.speedKmh.toFixed(1)} km/h</span>
+      <span>
+        {item.paceMinKm > 0 ? item.paceMinKm.toFixed(1) + " min/km" : "-"}
+      </span>
+      <span style={{ color: item.status === "MOVING" ? "#22c55e" : "#f97316" }}>
+        {item.status}
+      </span>
+    </div>
+  ))}
+</section>
     </main>
   );
 }
