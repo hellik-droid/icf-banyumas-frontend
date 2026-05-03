@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { io } from "socket.io-client";
 
-const RaceMap = dynamic(() => import("../components/Map"), { ssr: false });
+const RaceMap = dynamic(() => import("../components/MapClient"), { ssr: false });
 
 const API_URL = "https://icf-banyumas-backend-production.up.railway.app";
 
