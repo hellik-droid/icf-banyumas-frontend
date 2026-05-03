@@ -18,6 +18,30 @@ function formatDuration(ms: number) {
   return `${h}:${m}:${s}`;
 }
 
+function formatRaceTime(ms: number) {
+  if (!ms || ms < 0) return "0m 00s";
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function formatTimelineLabel(ms: number) {
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `${days}d ${String(hours).padStart(2, "0")}h\n${String(minutes).padStart(2, "0")}m`;
+  if (hours > 0) return `${hours}h\n${String(minutes).padStart(2, "0")}m`;
+  return `${minutes}m`;
+}
+
 export default function Dashboard() {
   const [tracking, setTracking] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -83,6 +107,15 @@ export default function Dashboard() {
     );
   }, [leaderboard, search]);
 
+  const selectedData = useMemo(() => {
+    return tracking
+      .filter((item) => item.athlete_name === selectedAthlete)
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+  }, [tracking, selectedAthlete]);
+
   const replayData = useMemo(() => {
     if (!isReplay) return tracking;
 
@@ -92,15 +125,6 @@ export default function Dashboard() {
 
     return sorted.slice(0, replayIndex + 1);
   }, [tracking, isReplay, replayIndex]);
-
-  const selectedData = useMemo(() => {
-    return tracking
-      .filter((item) => item.athlete_name === selectedAthlete)
-      .sort(
-        (a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-  }, [tracking, selectedAthlete]);
 
   const selectedLeader = leaderboard.find(
     (item) => item.athlete_name === selectedAthlete
@@ -112,9 +136,48 @@ export default function Dashboard() {
   const firstTime =
     selectedData.length > 0 ? new Date(selectedData[0].timestamp).getTime() : 0;
 
-  const elapsedTime = firstTime ? formatDuration(now - firstTime) : "00:00:00";
+  const lastTime =
+    selectedData.length > 0
+      ? new Date(selectedData[selectedData.length - 1].timestamp).getTime()
+      : 0;
+
+  const elapsedMs = firstTime ? now - firstTime : 0;
+  const elapsedTime = firstTime ? formatDuration(elapsedMs) : "00:00:00";
 
   const totalDistance = routeInfo?.distanceKm || 1;
+  const athleteDistance = Number(selectedLeader?.distance_km || 0);
+  const progressPercent = Math.min((athleteDistance / totalDistance) * 100, 100);
+
+  const eventStartTime =
+    tracking.length > 0
+      ? Math.min(...tracking.map((d) => new Date(d.timestamp).getTime()))
+      : 0;
+
+  const eventLastTime =
+    tracking.length > 0
+      ? Math.max(...tracking.map((d) => new Date(d.timestamp).getTime()))
+      : 0;
+
+  const eventDurationMs = eventStartTime ? now - eventStartTime : 0;
+
+  const replayProgress =
+    tracking.length > 1 ? (replayIndex / Math.max(tracking.length - 1, 1)) * 100 : 0;
+
+  const kmMarkers = useMemo(() => {
+    const totalKm = Math.max(Math.ceil(totalDistance), 1);
+    return Array.from({ length: totalKm + 1 }, (_, index) => index);
+  }, [totalDistance]);
+
+  const timelineMarkers = useMemo(() => {
+    const duration = Math.max(eventDurationMs, 60 * 60 * 1000);
+    const markerCount = 7;
+
+    return Array.from({ length: markerCount }, (_, index) => {
+      const percent = (index / (markerCount - 1)) * 100;
+      const time = (duration * percent) / 100;
+      return { percent, label: formatTimelineLabel(time) };
+    });
+  }, [eventDurationMs]);
 
   function handleSelectAthlete(name: string) {
     setSelectedAthlete(name);
@@ -131,7 +194,7 @@ export default function Dashboard() {
         color: "#0f172a",
         display: "grid",
         gridTemplateColumns: "360px 1fr",
-        gridTemplateRows: "1fr 92px",
+        gridTemplateRows: "1fr 110px",
         fontFamily: "Arial, sans-serif",
       }}
     >
@@ -272,7 +335,7 @@ export default function Dashboard() {
             <div style={detailGrid}>
               <DetailItem
                 label="Jarak ditempuh"
-                value={`${selectedLeader?.distance_km || 0} / ${totalDistance} KM`}
+                value={`${athleteDistance} / ${totalDistance} KM`}
               />
               <DetailItem
                 label="Kecepatan"
@@ -280,8 +343,8 @@ export default function Dashboard() {
               />
               <DetailItem label="Waktu tempuh" value={elapsedTime} />
               <DetailItem
-                label="ETA"
-                value={`${selectedLeader?.eta_minutes || 0} min`}
+                label="Progress"
+                value={`${progressPercent.toFixed(1)}%`}
               />
             </div>
 
@@ -304,10 +367,12 @@ export default function Dashboard() {
                 Lng: {selectedLatest?.longitude || "-"}
               </div>
               <div style={{ marginTop: 8, color: "#94a3b8", fontSize: 13 }}>
+                Start:{" "}
+                {firstTime ? new Date(firstTime).toLocaleString("id-ID") : "-"}
+              </div>
+              <div style={{ marginTop: 4, color: "#94a3b8", fontSize: 13 }}>
                 Last update:{" "}
-                {selectedLatest?.timestamp
-                  ? new Date(selectedLatest.timestamp).toLocaleString("id-ID")
-                  : "-"}
+                {lastTime ? new Date(lastTime).toLocaleString("id-ID") : "-"}
               </div>
             </div>
           </div>
@@ -320,10 +385,10 @@ export default function Dashboard() {
           background: "#f8fafc",
           borderTop: "1px solid #cbd5e1",
           display: "grid",
-          gridTemplateColumns: "140px 1fr 260px",
+          gridTemplateColumns: "130px 1fr 260px",
           alignItems: "center",
           gap: "18px",
-          padding: "12px 20px",
+          padding: "10px 20px",
         }}
       >
         <button
@@ -332,27 +397,158 @@ export default function Dashboard() {
             border: "none",
             background: "transparent",
             fontSize: "18px",
-            fontWeight: 700,
+            fontWeight: 800,
             cursor: "pointer",
+            color: "#0369a1",
           }}
         >
           {isReplay ? "▶ REPLAY" : "▌▌ LIVE"}
         </button>
 
-        <input
-          type="range"
-          min="0"
-          max={Math.max(tracking.length - 1, 0)}
-          value={isReplay ? replayIndex : Math.max(tracking.length - 1, 0)}
-          onChange={(e) => {
-            setIsReplay(true);
-            setReplayIndex(Number(e.target.value));
-          }}
-          style={{ width: "100%" }}
-        />
+        <div style={{ position: "relative", height: "78px" }}>
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 6,
+              height: 34,
+            }}
+          >
+            {timelineMarkers.map((marker, index) => (
+              <div
+                key={`time-${index}`}
+                style={{
+                  position: "absolute",
+                  left: `${marker.percent}%`,
+                  transform: "translateX(-50%)",
+                  color: "#334155",
+                  fontSize: 12,
+                  whiteSpace: "pre-line",
+                  textAlign: "center",
+                  borderLeft: "1px solid #94a3b8",
+                  paddingLeft: 4,
+                  lineHeight: "14px",
+                }}
+              >
+                {marker.label}
+              </div>
+            ))}
+          </div>
 
-        <div style={{ fontWeight: 700, color: "#334155" }}>
-          {elapsedTime} · {selectedLeader?.distance_km || 0}/{totalDistance} KM
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 44,
+              height: 6,
+              background: "#d1d5db",
+              borderRadius: 999,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${isReplay ? replayProgress : progressPercent}%`,
+                background: "#0ea5e9",
+                borderRadius: 999,
+              }}
+            />
+          </div>
+
+          <input
+            type="range"
+            min="0"
+            max={Math.max(tracking.length - 1, 0)}
+            value={isReplay ? replayIndex : Math.max(tracking.length - 1, 0)}
+            onChange={(e) => {
+              setIsReplay(true);
+              setReplayIndex(Number(e.target.value));
+            }}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 35,
+              width: "100%",
+              opacity: 0,
+              cursor: "pointer",
+              zIndex: 5,
+            }}
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              left: `${isReplay ? replayProgress : progressPercent}%`,
+              top: 35,
+              transform: "translateX(-50%)",
+              zIndex: 4,
+            }}
+          >
+            <div
+              style={{
+                width: 0,
+                height: 0,
+                borderLeft: "7px solid transparent",
+                borderRight: "7px solid transparent",
+                borderBottom: "9px solid #2563eb",
+                margin: "0 auto",
+              }}
+            />
+            <div
+              style={{
+                background: "white",
+                border: "2px solid #2563eb",
+                color: "#334155",
+                padding: "5px 8px",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                marginTop: 2,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatRaceTime(elapsedMs)}
+            </div>
+          </div>
+
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 18,
+            }}
+          >
+            {kmMarkers.map((km) => (
+              <div
+                key={`km-${km}`}
+                style={{
+                  position: "absolute",
+                  left: `${(km / Math.max(totalDistance, 1)) * 100}%`,
+                  transform: "translateX(-50%)",
+                  fontSize: 12,
+                  color: "#475569",
+                  fontWeight: 700,
+                  borderLeft: "1px solid #94a3b8",
+                  paddingLeft: 4,
+                }}
+              >
+                {km} KM
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ fontWeight: 800, color: "#334155", textAlign: "right" }}>
+          <div>{selectedAthlete || "-"}</div>
+          <div style={{ color: "#0369a1", marginTop: 4 }}>
+            {athleteDistance}/{totalDistance} KM
+          </div>
         </div>
       </footer>
     </main>
