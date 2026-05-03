@@ -37,8 +37,13 @@ function formatTimelineLabel(ms: number) {
   const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;
 
-  if (days > 0) return `${days}d ${String(hours).padStart(2, "0")}h\n${String(minutes).padStart(2, "0")}m`;
+  if (days > 0)
+    return `${days}d ${String(hours).padStart(2, "0")}h\n${String(
+      minutes
+    ).padStart(2, "0")}m`;
+
   if (hours > 0) return `${hours}h\n${String(minutes).padStart(2, "0")}m`;
+
   return `${minutes}m`;
 }
 
@@ -51,7 +56,10 @@ export default function Dashboard() {
   const [isReplay, setIsReplay] = useState(false);
   const [replayIndex, setReplayIndex] = useState(0);
   const [now, setNow] = useState(Date.now());
-  const [showAthleteCard, setShowAthleteCard] = useState(true);
+  const [showAthleteCard, setShowAthleteCard] = useState(false);
+  const [showAthleteList, setShowAthleteList] = useState(true);
+
+  const eventTitle = "ICF Banyumas Training";
 
   async function fetchAll() {
     try {
@@ -68,11 +76,6 @@ export default function Dashboard() {
       setTracking(Array.isArray(trackingJson) ? trackingJson : []);
       setLeaderboard(leaderJson?.data || []);
       setRouteInfo(checkpointJson || null);
-
-      if (!selectedAthlete && leaderJson?.data?.length > 0) {
-        setSelectedAthlete(leaderJson.data[0].athlete_name);
-        setShowAthleteCard(true);
-      }
     } catch (error) {
       console.error("Fetch error:", error);
     }
@@ -108,6 +111,8 @@ export default function Dashboard() {
   }, [leaderboard, search]);
 
   const selectedData = useMemo(() => {
+    if (!selectedAthlete) return [];
+
     return tracking
       .filter((item) => item.athlete_name === selectedAthlete)
       .sort(
@@ -146,22 +151,22 @@ export default function Dashboard() {
 
   const totalDistance = routeInfo?.distanceKm || 1;
   const athleteDistance = Number(selectedLeader?.distance_km || 0);
-  const progressPercent = Math.min((athleteDistance / totalDistance) * 100, 100);
+  const progressPercent =
+    selectedAthlete && selectedLeader
+      ? Math.min((athleteDistance / totalDistance) * 100, 100)
+      : 0;
 
   const eventStartTime =
     tracking.length > 0
       ? Math.min(...tracking.map((d) => new Date(d.timestamp).getTime()))
       : 0;
 
-  const eventLastTime =
-    tracking.length > 0
-      ? Math.max(...tracking.map((d) => new Date(d.timestamp).getTime()))
-      : 0;
-
   const eventDurationMs = eventStartTime ? now - eventStartTime : 0;
 
   const replayProgress =
-    tracking.length > 1 ? (replayIndex / Math.max(tracking.length - 1, 1)) * 100 : 0;
+    tracking.length > 1
+      ? (replayIndex / Math.max(tracking.length - 1, 1)) * 100
+      : 0;
 
   const kmMarkers = useMemo(() => {
     const totalKm = Math.max(Math.ceil(totalDistance), 1);
@@ -182,6 +187,17 @@ export default function Dashboard() {
   function handleSelectAthlete(name: string) {
     setSelectedAthlete(name);
     setShowAthleteCard(true);
+    setShowAthleteList(true);
+  }
+
+  function handleCloseAthletes() {
+    setSelectedAthlete("");
+    setShowAthleteCard(false);
+    setShowAthleteList(false);
+  }
+
+  function handleOpenAthletes() {
+    setShowAthleteList(true);
   }
 
   return (
@@ -208,6 +224,40 @@ export default function Dashboard() {
           overflow: "hidden",
         }}
       >
+        <div
+          style={{
+            padding: "18px 16px",
+            background: "linear-gradient(135deg, #0f172a, #1e3a8a)",
+            color: "white",
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
+              background: "rgba(255,255,255,.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 900,
+              fontSize: 18,
+              marginBottom: 10,
+              border: "1px solid rgba(255,255,255,.25)",
+            }}
+          >
+            ICF
+          </div>
+
+          <h2 style={{ margin: 0, fontSize: 21, lineHeight: 1.2 }}>
+            {eventTitle}
+          </h2>
+
+          <p style={{ margin: "6px 0 0 0", color: "#bfdbfe", fontSize: 13 }}>
+            Live race tracking dashboard
+          </p>
+        </div>
+
         <div style={{ padding: "14px", display: "flex", gap: "8px" }}>
           <input
             placeholder="Search athlete..."
@@ -233,37 +283,95 @@ export default function Dashboard() {
         <PoiItem label="CP 2" />
         <PoiItem label="CP 3" />
 
-        <PanelTitle title="Athletes" />
+        <div
+          style={{
+            background: "#dbeafe",
+            padding: "12px 14px",
+            fontWeight: 700,
+            borderTop: "1px solid #cbd5e1",
+            borderBottom: "1px solid #cbd5e1",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>Athletes</span>
 
-        <div style={{ overflowY: "auto", flex: 1 }}>
-          {filteredAthletes.map((item, index) => (
-            <button
-              key={item.athlete_name}
-              onClick={() => handleSelectAthlete(item.athlete_name)}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                padding: "14px",
-                border: "none",
-                borderBottom: "1px solid #e2e8f0",
-                background:
-                  selectedAthlete === item.athlete_name ? "#dbeafe" : "white",
-                cursor: "pointer",
-              }}
-            >
-              <strong>
-                {index + 1}. {item.athlete_name}
-              </strong>
-              <div style={{ fontSize: "13px", color: "#475569", marginTop: 4 }}>
-                {item.distance_km?.toFixed?.(2) || item.distance_km} km ·{" "}
-                {item.status}
-              </div>
-              <div style={{ fontSize: "12px", color: "#64748b" }}>
-                Speed {item.speed_kmh || 0} km/h · Progress{" "}
-                {item.progress_percent || 0}%
-              </div>
+          {showAthleteList ? (
+            <button onClick={handleCloseAthletes} style={miniCloseButton}>
+              ×
             </button>
-          ))}
+          ) : (
+            <button onClick={handleOpenAthletes} style={miniOpenButton}>
+              Show
+            </button>
+          )}
+        </div>
+
+        {showAthleteList ? (
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {filteredAthletes.map((item, index) => (
+              <button
+                key={item.athlete_name}
+                onClick={() => handleSelectAthlete(item.athlete_name)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "14px",
+                  border: "none",
+                  borderBottom: "1px solid #e2e8f0",
+                  background:
+                    selectedAthlete === item.athlete_name
+                      ? "#dbeafe"
+                      : "white",
+                  cursor: "pointer",
+                }}
+              >
+                <strong>
+                  {index + 1}. {item.athlete_name}
+                </strong>
+                <div
+                  style={{ fontSize: "13px", color: "#475569", marginTop: 4 }}
+                >
+                  {item.distance_km?.toFixed?.(2) || item.distance_km} km ·{" "}
+                  {item.status}
+                </div>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>
+                  Speed {item.speed_kmh || 0} km/h · Progress{" "}
+                  {item.progress_percent || 0}%
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              flex: 1,
+              padding: 18,
+              color: "#475569",
+              background: "#f8fafc",
+              fontSize: 14,
+            }}
+          >
+            Athlete list hidden. Semua titik atlet tetap tampil di map.
+          </div>
+        )}
+
+        <div
+          style={{
+            padding: "14px",
+            borderTop: "1px solid #cbd5e1",
+            background: "white",
+            color: "#64748b",
+            fontSize: 12,
+            lineHeight: 1.4,
+          }}
+        >
+          Powered by
+          <br />
+          <strong style={{ color: "#0f172a", fontSize: 13 }}>
+            Universitas Amikom Purwokerto
+          </strong>
         </div>
       </aside>
 
@@ -545,9 +653,11 @@ export default function Dashboard() {
         </div>
 
         <div style={{ fontWeight: 800, color: "#334155", textAlign: "right" }}>
-          <div>{selectedAthlete || "-"}</div>
+          <div>{selectedAthlete || "All athletes"}</div>
           <div style={{ color: "#0369a1", marginTop: 4 }}>
-            {athleteDistance}/{totalDistance} KM
+            {selectedAthlete
+              ? `${athleteDistance}/${totalDistance} KM`
+              : `${leaderboard.length} athletes visible`}
           </div>
         </div>
       </footer>
@@ -597,7 +707,14 @@ function DetailItem({ label, value }: { label: string; value: string }) {
       }}
     >
       <div style={{ color: "#94a3b8", fontSize: 13 }}>{label}</div>
-      <div style={{ color: "white", fontSize: 18, fontWeight: 800, marginTop: 5 }}>
+      <div
+        style={{
+          color: "white",
+          fontSize: 18,
+          fontWeight: 800,
+          marginTop: 5,
+        }}
+      >
         {value}
       </div>
     </div>
@@ -626,4 +743,24 @@ const mapButton = {
   fontWeight: 700,
   cursor: "pointer",
   boxShadow: "0 8px 24px rgba(0,0,0,.18)",
+};
+
+const miniCloseButton = {
+  width: 26,
+  height: 26,
+  borderRadius: 999,
+  border: "1px solid #94a3b8",
+  background: "white",
+  cursor: "pointer",
+  fontWeight: 900,
+};
+
+const miniOpenButton = {
+  border: "1px solid #94a3b8",
+  background: "white",
+  borderRadius: 999,
+  padding: "4px 10px",
+  cursor: "pointer",
+  fontWeight: 700,
+  fontSize: 12,
 };
