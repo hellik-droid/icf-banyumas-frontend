@@ -255,6 +255,11 @@ const routeInfo = {
     </main>
   );
 }
+const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
 
 const cardStyle = {
   background: "#0f172a",
