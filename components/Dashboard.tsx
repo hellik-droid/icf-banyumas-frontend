@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -28,13 +29,29 @@ export default function Dashboard() {
   const [data, setData] = useState<any[]>([]);
   const [selectedAthlete, setSelectedAthlete] = useState("");
   const [lastUpdate, setLastUpdate] = useState("");
+  const [replayMode, setReplayMode] = useState(false);
+  const [replayIndex, setReplayIndex] = useState(0);
+
+  const routeDistanceKm = 1;
+
+  const checkpoints = [
+    { name: "Start", km: 0 },
+    { name: "CP 1", km: 0.25 },
+    { name: "CP 2", km: 0.5 },
+    { name: "CP 3", km: 0.75 },
+    { name: "Finish", km: 1 },
+  ];
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch(`${API_URL}/tracking`);
-      const json = await res.json();
-      setData(json);
-      setLastUpdate(new Date().toLocaleTimeString("id-ID"));
+      try {
+        const res = await fetch(`${API_URL}/tracking`);
+        const json = await res.json();
+        setData(json);
+        setLastUpdate(new Date().toLocaleTimeString("id-ID"));
+      } catch (error) {
+        console.error("Fetch error:", error);
+      }
     }
 
     fetchData();
@@ -42,7 +59,9 @@ export default function Dashboard() {
     const socket = io(API_URL);
 
     socket.on("location-update", (newData) => {
-      if (!newData?.athlete_name || !newData?.latitude || !newData?.longitude) return;
+      if (!newData?.athlete_name || !newData?.latitude || !newData?.longitude) {
+        return;
+      }
 
       setData((prev) => [newData, ...prev]);
       setLastUpdate(new Date().toLocaleTimeString("id-ID"));
@@ -73,7 +92,8 @@ export default function Dashboard() {
 
       if (
         !previous ||
-        new Date(item.timestamp).getTime() > new Date(previous.timestamp).getTime()
+        new Date(item.timestamp).getTime() >
+          new Date(previous.timestamp).getTime()
       ) {
         athleteMap.set(item.athlete_name, item);
       }
@@ -88,7 +108,7 @@ export default function Dashboard() {
     }
   }, [latestPerAthlete, selectedAthlete]);
 
-  const startPoint: [number, number] = [-7.4098, 109.2428];
+  const startPoint: [number, number] = [-7.4564651, 109.2621908];
 
   const leaderboard = useMemo(() => {
     return latestPerAthlete
@@ -127,19 +147,49 @@ export default function Dashboard() {
             1000 /
             3600;
 
-          if (hours > 0) speedKmh = dist / hours;
+          if (hours > 0) {
+            speedKmh = dist / hours;
+          }
         }
 
-return {
-  ...item,
-  totalDistance,
-  speedKmh,
-  paceMinKm: speedKmh > 0 ? 60 / speedKmh : 0,
-  status: speedKmh > 0 ? "MOVING" : "STOPPED",
-};
+        if (speedKmh > 60) {
+          speedKmh = 0;
+        }
+
+        const progress = Math.min(totalDistance / routeDistanceKm, 1);
+
+        const nextCheckpoint =
+          checkpoints.find((cp) => cp.km > progress) ||
+          checkpoints[checkpoints.length - 1];
+
+        const remainingKm = Math.max(routeDistanceKm - totalDistance, 0);
+
+        const etaMinutes = speedKmh > 0 ? (remainingKm / speedKmh) * 60 : 0;
+
+        return {
+          ...item,
+          totalDistance,
+          speedKmh,
+          paceMinKm: speedKmh > 0 ? 60 / speedKmh : 0,
+          progress,
+          nextCheckpoint,
+          etaMinutes,
+          status: speedKmh > 1 ? "MOVING" : "STOPPED",
+        };
       })
-      .sort((a, b) => b.totalDistance - a.totalDistance);
+      .sort((a, b) => b.progress - a.progress);
   }, [latestPerAthlete, validData]);
+
+  const replayData = useMemo(() => {
+    if (!replayMode) return validData;
+
+    const sorted = [...validData].sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    return sorted.slice(0, replayIndex + 1);
+  }, [validData, replayMode, replayIndex]);
 
   return (
     <main
@@ -174,14 +224,17 @@ return {
           <p style={labelStyle}>Total Data</p>
           <h2>{data.length}</h2>
         </div>
+
         <div style={cardStyle}>
           <p style={labelStyle}>Marker Valid</p>
           <h2>{validData.length}</h2>
         </div>
+
         <div style={cardStyle}>
           <p style={labelStyle}>Atlet Aktif</p>
           <h2>{latestPerAthlete.length}</h2>
         </div>
+
         <div style={cardStyle}>
           <p style={labelStyle}>Realtime</p>
           <h2 style={{ color: "#22c55e" }}>LIVE</h2>
@@ -196,22 +249,25 @@ return {
           marginBottom: "20px",
         }}
       >
-<div style={cardStyle}>
-  <p style={labelStyle}>Rute</p>
-  <h2>Rute Google Maps</h2>
-</div>
-<div style={cardStyle}>
-  <p style={labelStyle}>Estimasi Jarak</p>
-  <h2>±1 KM</h2>
-</div>
-<div style={cardStyle}>
-  <p style={labelStyle}>Elevasi</p>
-  <h2>Perlu cek GPS/GPX</h2>
-</div>
-<div style={cardStyle}>
-  <p style={labelStyle}>Gradient</p>
-  <h2>Perlu cek GPS/GPX</h2>
-</div>
+        <div style={cardStyle}>
+          <p style={labelStyle}>Rute</p>
+          <h2>Rute Google Maps</h2>
+        </div>
+
+        <div style={cardStyle}>
+          <p style={labelStyle}>Estimasi Jarak</p>
+          <h2>±1 KM</h2>
+        </div>
+
+        <div style={cardStyle}>
+          <p style={labelStyle}>Elevasi</p>
+          <h2>Perlu cek GPS/GPX</h2>
+        </div>
+
+        <div style={cardStyle}>
+          <p style={labelStyle}>Gradient</p>
+          <h2>Perlu cek GPS/GPX</h2>
+        </div>
       </section>
 
       <section style={{ marginBottom: "20px" }}>
@@ -242,60 +298,141 @@ return {
         </span>
       </section>
 
-      <RaceMap data={validData} selectedAthlete={selectedAthlete} />
+      <section
+        style={{
+          background: "#0f172a",
+          border: "1px solid #334155",
+          borderRadius: "16px",
+          padding: "16px",
+          marginBottom: "20px",
+        }}
+      >
+        <h2 style={{ marginBottom: "12px" }}>Race Replay</h2>
 
-<section style={{ marginTop: "24px" }}>
-  <h2>Official Race Ranking</h2>
+        <button
+          onClick={() => setReplayMode(!replayMode)}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            border: "none",
+            background: replayMode ? "#ef4444" : "#22c55e",
+            color: "white",
+            fontWeight: 700,
+            marginRight: "12px",
+          }}
+        >
+          {replayMode ? "Exit Replay" : "Start Replay"}
+        </button>
 
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "70px 1fr 130px 130px 130px 120px",
-      gap: "12px",
-      background: "#0f172a",
-      padding: "14px",
-      borderRadius: "12px",
-      color: "#94a3b8",
-      fontWeight: 700,
-      marginBottom: "10px",
-    }}
-  >
-    <span>Rank</span>
-    <span>Atlet</span>
-    <span>Distance</span>
-    <span>Speed</span>
-    <span>Pace</span>
-    <span>Status</span>
-  </div>
+        {replayMode && (
+          <input
+            type="range"
+            min="0"
+            max={Math.max(validData.length - 1, 0)}
+            value={replayIndex}
+            onChange={(e) => setReplayIndex(Number(e.target.value))}
+            style={{ width: "60%" }}
+          />
+        )}
 
-  {leaderboard.map((item, index) => (
-    <div
-      key={item.athlete_name}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "70px 1fr 130px 130px 130px 120px",
-        gap: "12px",
-        background: index === 0 ? "#1e3a8a" : "#111827",
-        border: index === 0 ? "1px solid #60a5fa" : "1px solid #334155",
-        padding: "14px",
-        borderRadius: "12px",
-        marginBottom: "10px",
-        alignItems: "center",
-      }}
-    >
-      <strong>#{index + 1}</strong>
-      <strong>{item.athlete_name}</strong>
-      <span>{item.totalDistance.toFixed(2)} km</span>
-      <span>{item.speedKmh.toFixed(1)} km/h</span>
-      <span>
-        {item.paceMinKm > 0 ? item.paceMinKm.toFixed(1) + " min/km" : "-"}
-      </span>
-      <span style={{ color: item.status === "MOVING" ? "#22c55e" : "#f97316" }}>
-        {item.status}
-      </span>
-    </div>
-  ))}
-</section>
+        {replayMode && (
+          <span style={{ marginLeft: "12px", color: "#94a3b8" }}>
+            Frame: {replayIndex + 1} / {validData.length}
+          </span>
+        )}
+      </section>
+
+      <RaceMap
+        data={replayData}
+        selectedAthlete={selectedAthlete}
+        checkpoints={checkpoints}
+      />
+
+      <section style={{ marginTop: "24px" }}>
+        <h2 style={{ marginBottom: "12px" }}>Official Race Ranking</h2>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "70px 1fr 130px 130px 130px 120px",
+            gap: "12px",
+            background: "#0f172a",
+            padding: "14px",
+            borderRadius: "12px",
+            color: "#94a3b8",
+            fontWeight: 700,
+            marginBottom: "10px",
+          }}
+        >
+          <span>Rank</span>
+          <span>Atlet</span>
+          <span>Distance</span>
+          <span>Speed</span>
+          <span>Pace</span>
+          <span>Status</span>
+        </div>
+
+        {leaderboard.map((item, index) => (
+          <div
+            key={item.athlete_name}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "70px 1fr 130px 130px 130px 120px",
+              gap: "12px",
+              background: index === 0 ? "#1e3a8a" : "#111827",
+              border:
+                index === 0 ? "1px solid #60a5fa" : "1px solid #334155",
+              padding: "14px",
+              borderRadius: "12px",
+              marginBottom: "10px",
+              alignItems: "center",
+            }}
+          >
+            <strong>#{index + 1}</strong>
+            <strong>{item.athlete_name}</strong>
+            <span>{item.totalDistance.toFixed(2)} km</span>
+            <span>{item.speedKmh.toFixed(1)} km/h</span>
+            <span>
+              {item.paceMinKm > 0
+                ? item.paceMinKm.toFixed(1) + " min/km"
+                : "-"}
+            </span>
+            <span
+              style={{
+                color: item.status === "MOVING" ? "#22c55e" : "#f97316",
+              }}
+            >
+              {item.status}
+            </span>
+
+            <div style={{ gridColumn: "1 / -1" }}>
+              <p style={{ color: "#94a3b8", margin: "6px 0" }}>
+                Next: {item.nextCheckpoint.name} | ETA Finish:{" "}
+                {item.etaMinutes > 0
+                  ? item.etaMinutes.toFixed(1) + " menit"
+                  : "-"}
+              </p>
+
+              <div
+                style={{
+                  height: "8px",
+                  background: "#1e293b",
+                  borderRadius: "999px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(item.progress * 100).toFixed(1)}%`,
+                    height: "100%",
+                    background: "#22c55e",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </section>
     </main>
   );
 }
@@ -310,12 +447,4 @@ const cardStyle = {
 const labelStyle = {
   color: "#94a3b8",
   marginBottom: "8px",
-};
-
-const listStyle = {
-  background: "#111827",
-  border: "1px solid #334155",
-  padding: "14px",
-  borderRadius: "12px",
-  marginBottom: "10px",
 };
