@@ -194,22 +194,22 @@ export default function Dashboard() {
           marginBottom: "20px",
         }}
       >
-        <div style={cardStyle}>
-          <p style={labelStyle}>Rute</p>
-          <h2>Rektorat UNSOED - Baturraden</h2>
-        </div>
-        <div style={cardStyle}>
-          <p style={labelStyle}>Estimasi Jarak</p>
-          <h2>±13 KM</h2>
-        </div>
-        <div style={cardStyle}>
-          <p style={labelStyle}>Elevasi</p>
-          <h2>±500 m</h2>
-        </div>
-        <div style={cardStyle}>
-          <p style={labelStyle}>Gradient</p>
-          <h2>±4–6%</h2>
-        </div>
+<div style={cardStyle}>
+  <p style={labelStyle}>Rute</p>
+  <h2>Rute Google Maps</h2>
+</div>
+<div style={cardStyle}>
+  <p style={labelStyle}>Estimasi Jarak</p>
+  <h2>±1 KM</h2>
+</div>
+<div style={cardStyle}>
+  <p style={labelStyle}>Elevasi</p>
+  <h2>Perlu cek GPS/GPX</h2>
+</div>
+<div style={cardStyle}>
+  <p style={labelStyle}>Gradient</p>
+  <h2>Perlu cek GPS/GPX</h2>
+</div>
       </section>
 
       <section style={{ marginBottom: "20px" }}>
