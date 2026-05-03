@@ -99,17 +99,6 @@ function AutoFollow({ athlete }: any) {
   return null;
 }
 
-function FitRoute({ route }: any) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!route || route.length === 0) return;
-    map.fitBounds(route, { padding: [40, 40] });
-  }, [route, map]);
-
-  return null;
-}
-
 function AnimatedMarker({ item, icon }: any) {
   const markerRef = useRef<any>(null);
   const prevPos = useRef<[number, number]>([
@@ -166,15 +155,15 @@ function AnimatedMarker({ item, icon }: any) {
   );
 }
 
-export default function MapClient({ data, selectedAthlete, routeData }: any) {
+export default function MapClient({ data, selectedAthlete }: any) {
   const validData = data.filter(
     (item: any) =>
       item &&
       item.athlete_name &&
       item.latitude !== null &&
       item.longitude !== null &&
-      !isNaN(Number(item.latitude)) &&
-      !isNaN(Number(item.longitude))
+      !Number.isNaN(Number(item.latitude)) &&
+      !Number.isNaN(Number(item.longitude))
   );
 
   const latestMap = new globalThis.Map<string, any>();
@@ -206,7 +195,7 @@ export default function MapClient({ data, selectedAthlete, routeData }: any) {
     )
     .map((item: any) => [Number(item.latitude), Number(item.longitude)]);
 
-  const fallbackRoute: [number, number][] = [
+  const raceRoute: [number, number][] = [
     [-7.4098, 109.2428],
     [-7.4028, 109.2398],
     [-7.3942, 109.2372],
@@ -218,14 +207,9 @@ export default function MapClient({ data, selectedAthlete, routeData }: any) {
     [-7.318161, 109.228742],
   ];
 
-  const raceRoute: [number, number][] =
-    routeData && routeData.length > 0 ? routeData : fallbackRoute;
-
-  const center: [number, number] = [-7.4246, 109.2396];
-
   return (
     <LeafletMap
-      center={center}
+      center={[-7.4098, 109.2428]}
       zoom={13}
       style={{
         height: "640px",
@@ -237,8 +221,6 @@ export default function MapClient({ data, selectedAthlete, routeData }: any) {
       }}
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-      <FitRoute route={raceRoute} />
 
       <Polyline
         positions={raceRoute}
