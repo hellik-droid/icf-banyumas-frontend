@@ -17,7 +17,7 @@ const LeafletMap = MapContainer as any;
 
 const checkpointRoute: [number, number][] = [
   [-7.45495, 109.26628], // START
-  [-7.45758, 109.28730], // CP1
+  [-7.45758, 109.2873], // CP1
   [-7.43835, 109.25457], // CP2
   [-7.44699, 109.25428], // CP3
   [-7.45495, 109.26621], // FINISH
@@ -57,12 +57,13 @@ function createCheckpointIcon(label: string) {
     iconAnchor: [40, 17],
   });
 }
-function createAthleteIcon(name: string) {
+
+function createAthleteIcon(name: string, selected: boolean) {
   return L.divIcon({
     className: "",
     html: `
       <div style="
-        background:#2563eb;
+        background:${selected ? "#dc2626" : "#2563eb"};
         color:white;
         padding:7px 12px;
         border-radius:999px;
@@ -75,10 +76,11 @@ function createAthleteIcon(name: string) {
         🚴 ${name}
       </div>
     `,
-    iconSize: [120, 34],
-    iconAnchor: [20, 17],
+    iconSize: [150, 36],
+    iconAnchor: [24, 18],
   });
 }
+
 function FitRoute({ route }: any) {
   const map = useMap();
   const hasFit = useRef(false);
@@ -249,22 +251,26 @@ export default function MapClient({
         <Popup>FINISH</Popup>
       </Marker>
 
-      {latestPerAthlete.map((item: any) => (
-        <Marker
-          key={item.athlete_name}
-          position={[Number(item.latitude), Number(item.longitude)]}
-          icon={createAthleteIcon(item.athlete_name)}
-          eventHandlers={{
-            click: () => onSelectAthlete(item.athlete_name),
-          }}
-        >
-          <Popup>
-            <strong>{item.athlete_name}</strong>
-            <br />
-            Speed: {item.speed_kmh || 0} km/h
-          </Popup>
-        </Marker>
-      ))}
+      {latestPerAthlete.map((item: any) => {
+        const isSelected = item.athlete_name === selectedAthlete;
+
+        return (
+          <Marker
+            key={item.athlete_name}
+            position={[Number(item.latitude), Number(item.longitude)]}
+            icon={createAthleteIcon(item.athlete_name, isSelected)}
+            eventHandlers={{
+              click: () => onSelectAthlete(item.athlete_name),
+            }}
+          >
+            <Popup>
+              <strong>{item.athlete_name}</strong>
+              <br />
+              Speed: {item.speed_kmh || 0} km/h
+            </Popup>
+          </Marker>
+        );
+      })}
     </LeafletMap>
   );
 }
