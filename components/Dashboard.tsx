@@ -193,41 +193,33 @@ export default function Dashboard() {
 
   const route = routeInfo?.route || [];
 
-  const poiItems = useMemo(() => {
-    if (!Array.isArray(route) || route.length < 2) {
-      return [
-        { label: "START", detail: "Race start point", point: null },
-        { label: "CP 1", detail: "Checkpoint 1", point: null },
-        { label: "CP 2", detail: "Checkpoint 2", point: null },
-        { label: "CP 3", detail: "Checkpoint 3", point: null },
-        { label: "FINISH", detail: "Race finish point", point: null },
-      ];
-    }
-
-    return [
-      { label: "START", detail: "Race start point", point: route[0] },
-      {
-        label: "CP 1",
-        detail: "Checkpoint 1",
-        point: route[Math.floor(route.length * 0.25)],
-      },
-      {
-        label: "CP 2",
-        detail: "Checkpoint 2",
-        point: route[Math.floor(route.length * 0.5)],
-      },
-      {
-        label: "CP 3",
-        detail: "Checkpoint 3",
-        point: route[Math.floor(route.length * 0.75)],
-      },
-      {
-        label: "FINISH",
-        detail: "Race finish point",
-        point: route[route.length - 1],
-      },
-    ];
-  }, [route]);
+const poiItems = [
+  {
+    label: "START",
+    detail: "Race start point",
+    point: [-7.4565, 109.2621],
+  },
+  {
+    label: "CP 1",
+    detail: "Checkpoint 1",
+    point: route[Math.floor(route.length * 0.25)],
+  },
+  {
+    label: "CP 2",
+    detail: "Checkpoint 2",
+    point: route[Math.floor(route.length * 0.5)],
+  },
+  {
+    label: "CP 3",
+    detail: "Checkpoint 3",
+    point: route[Math.floor(route.length * 0.75)],
+  },
+  {
+    label: "FINISH",
+    detail: "Race finish point",
+    point: route[route.length - 1],
+  },
+];  
 
   function handleSelectAthlete(name: string) {
     setSelectedAthlete(name);

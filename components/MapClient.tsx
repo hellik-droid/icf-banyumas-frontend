@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import {
   MapContainer,
@@ -9,95 +9,92 @@ import {
   Marker,
   Popup,
   Polyline,
-  CircleMarker,
   useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 const LeafletMap = MapContainer as any;
 
-const colors = [
-  "#ef4444",
-  "#3b82f6",
-  "#22c55e",
-  "#f97316",
-  "#a855f7",
-  "#14b8a6",
-  "#eab308",
-  "#ec4899",
+const checkpointRoute: [number, number][] = [
+  [-7.45495, 109.26628], // START
+  [-7.45758, 109.28730], // CP1
+  [-7.43835, 109.25457], // CP2
+  [-7.44699, 109.25428], // CP3
+  [-7.45495, 109.26621], // FINISH
 ];
 
-function FocusPoi({ selectedPoi }: any) {
-  const map = useMap();
+function getPoiPoint(label: string): [number, number] | null {
+  const key = label.replace(/\s/g, "").toUpperCase();
 
-  useEffect(() => {
-    if (!selectedPoi?.point) return;
-
-    const [lat, lng] = selectedPoi.point;
-
-    map.flyTo([Number(lat), Number(lng)], 17, {
-      duration: 1.2,
-    });
-
-    L.popup()
-      .setLatLng([Number(lat), Number(lng)])
-      .setContent(`
-        <b>${selectedPoi.label}</b><br/>
-        ${selectedPoi.detail || ""}
-      `)
-      .openOn(map);
-  }, [selectedPoi, map]);
+  if (key === "START") return checkpointRoute[0];
+  if (key === "CP1") return checkpointRoute[1];
+  if (key === "CP2") return checkpointRoute[2];
+  if (key === "CP3") return checkpointRoute[3];
+  if (key === "FINISH") return checkpointRoute[4];
 
   return null;
 }
 
-function createAthleteIcon(label: string, color: string, selected: boolean) {
+function createCheckpointIcon(label: string) {
   return L.divIcon({
     className: "",
     html: `
       <div style="
-        display:flex;
-        align-items:center;
-        gap:6px;
-        background:${selected ? "#ef4444" : color};
+        background:#020617;
         color:white;
-        padding:6px 10px;
-        border-radius:999px;
-        font-weight:800;
-        border:3px solid white;
-        box-shadow:0 8px 20px rgba(0,0,0,.35);
-        white-space:nowrap;
-        font-size:12px;
-      ">
-        ● ${label}
-      </div>
-    `,
-    iconSize: [140, 34],
-    iconAnchor: [20, 17],
-  });
-}
-
-function createPoiIcon(label: string) {
-  return L.divIcon({
-    className: "",
-    html: `
-      <div style="
-        background:#111827;
-        color:white;
-        padding:6px 9px;
+        padding:8px 12px;
         border-radius:4px;
-        font-weight:800;
+        font-weight:900;
+        font-size:12px;
         border:2px solid white;
-        box-shadow:0 6px 16px rgba(0,0,0,.35);
-        font-size:11px;
+        box-shadow:0 8px 20px rgba(0,0,0,.35);
         white-space:nowrap;
       ">
         ${label}
       </div>
     `,
-    iconSize: [80, 30],
-    iconAnchor: [40, 15],
+    iconSize: [80, 34],
+    iconAnchor: [40, 17],
   });
+}
+
+function FitRoute({ route }: any) {
+  const map = useMap();
+  const hasFit = useRef(false);
+
+  useEffect(() => {
+    if (hasFit.current) return;
+    if (!route || route.length < 2) return;
+
+    map.fitBounds(route, { padding: [60, 60] });
+    hasFit.current = true;
+  }, [route, map]);
+
+  return null;
+}
+
+function FocusPoi({ selectedPoi }: any) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedPoi?.label) return;
+
+    const point = getPoiPoint(selectedPoi.label);
+    if (!point) return;
+
+    const [lat, lng] = point;
+
+    map.flyTo([lat, lng], 17, {
+      duration: 1.2,
+    });
+
+    L.popup()
+      .setLatLng([lat, lng])
+      .setContent(`<b>${selectedPoi.label}</b><br/>${selectedPoi.detail || ""}`)
+      .openOn(map);
+  }, [selectedPoi, map]);
+
+  return null;
 }
 
 function AutoFollow({ athlete }: any) {
@@ -114,152 +111,85 @@ function AutoFollow({ athlete }: any) {
   return null;
 }
 
-function FitRoute({ route }: any) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!route || route.length < 2) return;
-    map.fitBounds(route, { padding: [50, 50] });
-  }, [route, map]);
-
-  return null;
-}
-
-function AnimatedMarker({ item, icon, onClick }: any) {
-  const markerRef = useRef<any>(null);
-  const prevPos = useRef<[number, number]>([
-    Number(item.latitude),
-    Number(item.longitude),
-  ]);
-
-  useEffect(() => {
-    const marker = markerRef.current;
-    if (!marker) return;
-
-    const start = prevPos.current;
-    const end: [number, number] = [
-      Number(item.latitude),
-      Number(item.longitude),
-    ];
-
-    let step = 0;
-    const totalSteps = 25;
-
-    const interval = setInterval(() => {
-      step++;
-
-      const lat = start[0] + (end[0] - start[0]) * (step / totalSteps);
-      const lng = start[1] + (end[1] - start[1]) * (step / totalSteps);
-
-      marker.setLatLng([lat, lng]);
-
-      if (step >= totalSteps) {
-        clearInterval(interval);
-        prevPos.current = end;
-      }
-    }, 35);
-
-    return () => clearInterval(interval);
-  }, [item.latitude, item.longitude]);
-
-  return (
-    <Marker
-      ref={markerRef}
-      position={[Number(item.latitude), Number(item.longitude)]}
-      icon={icon}
-      eventHandlers={{
-        click: () => onClick(item.athlete_name),
-      }}
-    >
-      <Popup>
-        <strong>{item.athlete_name}</strong>
-        <br />
-        Speed: {item.speed || item.speed_kmh || 0} km/h
-        <br />
-        Lat: {item.latitude}
-        <br />
-        Lng: {item.longitude}
-        <br />
-        {item.timestamp
-          ? new Date(item.timestamp).toLocaleString("id-ID")
-          : "-"}
-      </Popup>
-    </Marker>
-  );
-}
-
 export default function MapClient({
   data = [],
   selectedAthlete = "",
-  route = [],
   selectedPoi = null,
   onSelectAthlete,
 }: any) {
-  const fallbackRoute: [number, number][] = [
-    [-7.4564651, 109.2621908],
-    [-7.4563547, 109.2626408],
-    [-7.4554416, 109.262382],
-    [-7.4553538, 109.261572],
-    [-7.4564828, 109.2614795],
-    [-7.456474, 109.2622385],
-  ];
+  const [roadRoute, setRoadRoute] = useState<[number, number][]>([]);
 
-  const raceRoute: [number, number][] =
-    Array.isArray(route) && route.length > 0 ? route : fallbackRoute;
+  useEffect(() => {
+    async function loadRoute() {
+      try {
+        const coords = checkpointRoute
+          .map(([lat, lng]) => `${lng},${lat}`)
+          .join(";");
 
-  const validData = Array.isArray(data)
-    ? data.filter(
-        (item: any) =>
-          item &&
-          item.athlete_name &&
-          item.latitude !== null &&
-          item.longitude !== null &&
-          !Number.isNaN(Number(item.latitude)) &&
-          !Number.isNaN(Number(item.longitude))
-      )
-    : [];
+        const res = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+        );
 
-  const latestMap = new globalThis.Map<string, any>();
+        const json = await res.json();
 
-  validData.forEach((item: any) => {
-    const existing = latestMap.get(item.athlete_name);
+        const routeCoords = json.routes[0].geometry.coordinates.map(
+          ([lng, lat]: [number, number]) => [lat, lng]
+        );
 
-    if (
-      !existing ||
-      new Date(item.timestamp).getTime() >
-        new Date(existing.timestamp).getTime()
-    ) {
+        setRoadRoute(routeCoords);
+      } catch (err) {
+        console.error("OSRM error:", err);
+        setRoadRoute(checkpointRoute);
+      }
+    }
+
+    loadRoute();
+  }, []);
+
+  const raceRoute = roadRoute.length > 0 ? roadRoute : checkpointRoute;
+
+  const latestMap = new Map();
+
+  data.forEach((item: any) => {
+    if (!item?.athlete_name) return;
+
+    const lat = Number(item.latitude);
+    const lng = Number(item.longitude);
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+    const prev = latestMap.get(item.athlete_name);
+
+    if (!prev || new Date(item.timestamp) > new Date(prev.timestamp)) {
       latestMap.set(item.athlete_name, item);
     }
   });
 
-  const latestPerAthlete = Array.from(latestMap.values()).slice(0, 30);
+  const latestPerAthlete = Array.from(latestMap.values()).filter((item: any) => {
+    const lat = Number(item.latitude);
+    const lng = Number(item.longitude);
+
+    return (
+      item &&
+      item.athlete_name &&
+      item.latitude !== null &&
+      item.longitude !== null &&
+      item.latitude !== undefined &&
+      item.longitude !== undefined &&
+      !Number.isNaN(lat) &&
+      !Number.isNaN(lng)
+    );
+  });
 
   const selectedLatest = latestPerAthlete.find(
-    (item: any) => item.athlete_name === selectedAthlete
+    (a: any) => a.athlete_name === selectedAthlete
   );
-
-  const selectedTrack = validData
-    .filter((item: any) => item.athlete_name === selectedAthlete)
-    .sort(
-      (a: any, b: any) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    )
-    .map((item: any) => [Number(item.latitude), Number(item.longitude)]);
-
-  const cp1 = raceRoute[Math.floor(raceRoute.length * 0.25)];
-  const cp2 = raceRoute[Math.floor(raceRoute.length * 0.5)];
-  const cp3 = raceRoute[Math.floor(raceRoute.length * 0.75)];
 
   return (
     <LeafletMap
-      center={raceRoute[0]}
+      center={checkpointRoute[0]}
       zoom={13}
-      style={{
-        height: "100%",
-        width: "100%",
-      }}
-      zoomControl={true}
+      style={{ height: "100%", width: "100%" }}
     >
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
@@ -268,81 +198,51 @@ export default function MapClient({
 
       <FitRoute route={raceRoute} />
       <FocusPoi selectedPoi={selectedPoi} />
-      <Polyline
-        positions={raceRoute}
-        pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.85 }}
-      />
-
-      <Marker position={raceRoute[0]} icon={createPoiIcon("START")}>
-        <Popup>Start</Popup>
-      </Marker>
-
-      {cp1 && (
-        <Marker position={cp1} icon={createPoiIcon("CP1")}>
-          <Popup>Checkpoint 1</Popup>
-        </Marker>
-      )}
-
-      {cp2 && (
-        <Marker position={cp2} icon={createPoiIcon("CP2")}>
-          <Popup>Checkpoint 2</Popup>
-        </Marker>
-      )}
-
-      {cp3 && (
-        <Marker position={cp3} icon={createPoiIcon("CP3")}>
-          <Popup>Checkpoint 3</Popup>
-        </Marker>
-      )}
-
-      <Marker
-        position={raceRoute[raceRoute.length - 1]}
-        icon={createPoiIcon("FINISH")}
-      >
-        <Popup>Finish</Popup>
-      </Marker>
-
-      {selectedTrack.length > 1 && (
-        <Polyline
-          positions={selectedTrack as any}
-          pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.95 }}
-        />
-      )}
-
-      {selectedTrack.map((pos: any, index: number) => (
-        <CircleMarker
-          key={`track-${index}`}
-          center={pos}
-          radius={5}
-          pathOptions={{
-            color: "#0ea5e9",
-            fillColor: "#0ea5e9",
-            fillOpacity: 0.7,
-            weight: 2,
-          }}
-        />
-      ))}
-
       <AutoFollow athlete={selectedLatest} />
 
-      {latestPerAthlete.map((item: any, index: number) => {
-        const isSelected = item.athlete_name === selectedAthlete;
+      <Polyline
+        positions={raceRoute}
+        pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.9 }}
+      />
 
-        const icon = createAthleteIcon(
-          `${index + 1}. ${item.athlete_name}`,
-          colors[index % colors.length],
-          isSelected
-        );
+      <Marker position={checkpointRoute[0]} icon={createCheckpointIcon("START")}>
+        <Popup>START</Popup>
+      </Marker>
 
-        return (
-          <AnimatedMarker
-            key={item.athlete_name}
-            item={item}
-            icon={icon}
-            onClick={onSelectAthlete}
-          />
-        );
-      })}
+      <Marker position={checkpointRoute[1]} icon={createCheckpointIcon("CP1")}>
+        <Popup>CP1</Popup>
+      </Marker>
+
+      <Marker position={checkpointRoute[2]} icon={createCheckpointIcon("CP2")}>
+        <Popup>CP2</Popup>
+      </Marker>
+
+      <Marker position={checkpointRoute[3]} icon={createCheckpointIcon("CP3")}>
+        <Popup>CP3</Popup>
+      </Marker>
+
+      <Marker
+        position={checkpointRoute[4]}
+        icon={createCheckpointIcon("FINISH")}
+      >
+        <Popup>FINISH</Popup>
+      </Marker>
+
+      {latestPerAthlete.map((item: any) => (
+        <Marker
+          key={item.athlete_name}
+          position={[Number(item.latitude), Number(item.longitude)]}
+          eventHandlers={{
+            click: () => onSelectAthlete(item.athlete_name),
+          }}
+        >
+          <Popup>
+            <strong>{item.athlete_name}</strong>
+            <br />
+            Speed: {item.speed_kmh || 0} km/h
+          </Popup>
+        </Marker>
+      ))}
     </LeafletMap>
   );
 }
