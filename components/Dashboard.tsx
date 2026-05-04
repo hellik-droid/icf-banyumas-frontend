@@ -37,10 +37,11 @@ function formatTimelineLabel(ms: number) {
   const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;
 
-  if (days > 0)
+  if (days > 0) {
     return `${days}d ${String(hours).padStart(2, "0")}h\n${String(
       minutes
     ).padStart(2, "0")}m`;
+  }
 
   if (hours > 0) return `${hours}h\n${String(minutes).padStart(2, "0")}m`;
 
@@ -51,13 +52,18 @@ export default function Dashboard() {
   const [tracking, setTracking] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [routeInfo, setRouteInfo] = useState<any>(null);
+
   const [selectedAthlete, setSelectedAthlete] = useState("");
+  const [selectedPoi, setSelectedPoi] = useState<any>(null);
+
   const [search, setSearch] = useState("");
   const [isReplay, setIsReplay] = useState(false);
   const [replayIndex, setReplayIndex] = useState(0);
   const [now, setNow] = useState(Date.now());
+
   const [showAthleteCard, setShowAthleteCard] = useState(false);
   const [showAthleteList, setShowAthleteList] = useState(true);
+  const [showPoiList, setShowPoiList] = useState(true);
 
   const eventTitle = "ICF Banyumas Training";
 
@@ -151,6 +157,7 @@ export default function Dashboard() {
 
   const totalDistance = routeInfo?.distanceKm || 1;
   const athleteDistance = Number(selectedLeader?.distance_km || 0);
+
   const progressPercent =
     selectedAthlete && selectedLeader
       ? Math.min((athleteDistance / totalDistance) * 100, 100)
@@ -184,8 +191,47 @@ export default function Dashboard() {
     });
   }, [eventDurationMs]);
 
+  const route = routeInfo?.route || [];
+
+  const poiItems = useMemo(() => {
+    if (!Array.isArray(route) || route.length < 2) {
+      return [
+        { label: "START", detail: "Race start point", point: null },
+        { label: "CP 1", detail: "Checkpoint 1", point: null },
+        { label: "CP 2", detail: "Checkpoint 2", point: null },
+        { label: "CP 3", detail: "Checkpoint 3", point: null },
+        { label: "FINISH", detail: "Race finish point", point: null },
+      ];
+    }
+
+    return [
+      { label: "START", detail: "Race start point", point: route[0] },
+      {
+        label: "CP 1",
+        detail: "Checkpoint 1",
+        point: route[Math.floor(route.length * 0.25)],
+      },
+      {
+        label: "CP 2",
+        detail: "Checkpoint 2",
+        point: route[Math.floor(route.length * 0.5)],
+      },
+      {
+        label: "CP 3",
+        detail: "Checkpoint 3",
+        point: route[Math.floor(route.length * 0.75)],
+      },
+      {
+        label: "FINISH",
+        detail: "Race finish point",
+        point: route[route.length - 1],
+      },
+    ];
+  }, [route]);
+
   function handleSelectAthlete(name: string) {
     setSelectedAthlete(name);
+    setSelectedPoi(null);
     setShowAthleteCard(true);
     setShowAthleteList(true);
   }
@@ -198,6 +244,11 @@ export default function Dashboard() {
 
   function handleOpenAthletes() {
     setShowAthleteList(true);
+  }
+
+  function handleSelectPoi(item: any) {
+    setSelectedPoi(item);
+    setShowAthleteCard(false);
   }
 
   return (
@@ -271,42 +322,53 @@ export default function Dashboard() {
               fontSize: "14px",
             }}
           />
+
           <button style={iconButton}>⚙</button>
+
           <button onClick={fetchAll} style={iconButton}>
             ↻
           </button>
         </div>
 
-        <PanelTitle title="Points of interest" />
-        <PoiItem label="START / FINISH" />
-        <PoiItem label="CP 1" />
-        <PoiItem label="CP 2" />
-        <PoiItem label="CP 3" />
+        <PanelTitle
+          title="Start / Finish"
+          isOpen={showPoiList}
+          onClose={() => setShowPoiList(false)}
+          onOpen={() => setShowPoiList(true)}
+        />
 
-        <div
-          style={{
-            background: "#dbeafe",
-            padding: "12px 14px",
-            fontWeight: 700,
-            borderTop: "1px solid #cbd5e1",
-            borderBottom: "1px solid #cbd5e1",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>Athletes</span>
+        {showPoiList ? (
+          <div>
+            {poiItems.map((item) => (
+              <PoiItem
+                key={item.label}
+                label={item.label}
+                detail={item.detail}
+                active={selectedPoi?.label === item.label}
+                onClick={() => handleSelectPoi(item)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: 14,
+              color: "#64748b",
+              fontSize: 13,
+              background: "white",
+              borderBottom: "1px solid #e2e8f0",
+            }}
+          >
+            Start / Finish hidden.
+          </div>
+        )}
 
-          {showAthleteList ? (
-            <button onClick={handleCloseAthletes} style={miniCloseButton}>
-              ×
-            </button>
-          ) : (
-            <button onClick={handleOpenAthletes} style={miniOpenButton}>
-              Show
-            </button>
-          )}
-        </div>
+        <PanelTitle
+          title="Athletes"
+          isOpen={showAthleteList}
+          onClose={handleCloseAthletes}
+          onOpen={handleOpenAthletes}
+        />
 
         {showAthleteList ? (
           <div style={{ overflowY: "auto", flex: 1 }}>
@@ -330,12 +392,14 @@ export default function Dashboard() {
                 <strong>
                   {index + 1}. {item.athlete_name}
                 </strong>
+
                 <div
                   style={{ fontSize: "13px", color: "#475569", marginTop: 4 }}
                 >
                   {item.distance_km?.toFixed?.(2) || item.distance_km} km ·{" "}
                   {item.status}
                 </div>
+
                 <div style={{ fontSize: "12px", color: "#64748b" }}>
                   Speed {item.speed_kmh || 0} km/h · Progress{" "}
                   {item.progress_percent || 0}%
@@ -376,13 +440,14 @@ export default function Dashboard() {
       </aside>
 
       <section style={{ position: "relative", overflow: "hidden" }}>
-        <RaceMap
-          data={replayData}
-          selectedAthlete={selectedAthlete}
-          route={routeInfo?.route || []}
-          checkpoints={routeInfo?.checkpoints || []}
-          onSelectAthlete={handleSelectAthlete}
-        />
+<RaceMap
+  data={replayData}
+  selectedAthlete={selectedAthlete}
+  route={route}
+  checkpoints={routeInfo?.checkpoints || []}
+  selectedPoi={selectedPoi}
+  onSelectAthlete={handleSelectAthlete}
+/>
 
         <div
           style={{
@@ -397,6 +462,80 @@ export default function Dashboard() {
           <button style={mapButton}>🔍</button>
           <button style={mapButton}>Recenter selection</button>
         </div>
+
+        {selectedPoi && (
+          <div
+            style={{
+              position: "absolute",
+              right: 24,
+              top: 24,
+              width: "360px",
+              background: "rgba(15, 23, 42, 0.9)",
+              color: "white",
+              borderRadius: "18px",
+              padding: "18px",
+              zIndex: 900,
+              backdropFilter: "blur(8px)",
+              boxShadow: "0 20px 50px rgba(0,0,0,.35)",
+              border: "1px solid rgba(255,255,255,.12)",
+            }}
+          >
+            <button
+              onClick={() => setSelectedPoi(null)}
+              style={closeFloatingButton}
+            >
+              ×
+            </button>
+
+            <h2 style={{ margin: "0 36px 8px 0" }}>{selectedPoi.label}</h2>
+
+            <p style={{ margin: "0 0 14px 0", color: "#cbd5e1" }}>
+              {selectedPoi.detail}
+            </p>
+
+<div
+  style={{
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    background: "rgba(2, 6, 23, .45)",
+    border: "1px solid rgba(148, 163, 184, .25)",
+  }}
+>
+  <div style={{ color: "#93c5fd", fontWeight: 800, marginBottom: 10 }}>
+    Urutan Atlet
+  </div>
+
+  {leaderboard.length === 0 ? (
+    <div style={{ color: "#cbd5e1", fontSize: 13 }}>
+      Belum ada data atlet.
+    </div>
+  ) : (
+    leaderboard.slice(0, 10).map((item, index) => (
+      <div
+        key={item.athlete_name}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 10,
+          padding: "8px 0",
+          borderBottom: "1px solid rgba(148,163,184,.18)",
+          fontSize: 13,
+        }}
+      >
+        <span>
+          {index + 1}. {item.athlete_name}
+        </span>
+
+        <span style={{ color: "#bae6fd", fontWeight: 700 }}>
+          {item.distance_km || 0} KM
+        </span>
+      </div>
+    ))
+  )}
+</div>
+          </div>
+        )}
 
         {showAthleteCard && selectedAthlete && (
           <div
@@ -417,19 +556,7 @@ export default function Dashboard() {
           >
             <button
               onClick={() => setShowAthleteCard(false)}
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 12,
-                width: 30,
-                height: 30,
-                borderRadius: "999px",
-                border: "none",
-                background: "rgba(255,255,255,.15)",
-                color: "white",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
+              style={closeFloatingButton}
             >
               ×
             </button>
@@ -445,11 +572,14 @@ export default function Dashboard() {
                 label="Jarak ditempuh"
                 value={`${athleteDistance} / ${totalDistance} KM`}
               />
+
               <DetailItem
                 label="Kecepatan"
                 value={`${selectedLeader?.speed_kmh || 0} km/h`}
               />
+
               <DetailItem label="Waktu tempuh" value={elapsedTime} />
+
               <DetailItem
                 label="Progress"
                 value={`${progressPercent.toFixed(1)}%`}
@@ -468,16 +598,20 @@ export default function Dashboard() {
               <div style={{ color: "#93c5fd", fontWeight: 700 }}>
                 Koordinat lokasi atlet
               </div>
+
               <div style={{ marginTop: 6, color: "#e0f2fe" }}>
                 Lat: {selectedLatest?.latitude || "-"}
               </div>
+
               <div style={{ marginTop: 4, color: "#e0f2fe" }}>
                 Lng: {selectedLatest?.longitude || "-"}
               </div>
+
               <div style={{ marginTop: 8, color: "#94a3b8", fontSize: 13 }}>
                 Start:{" "}
                 {firstTime ? new Date(firstTime).toLocaleString("id-ID") : "-"}
               </div>
+
               <div style={{ marginTop: 4, color: "#94a3b8", fontSize: 13 }}>
                 Last update:{" "}
                 {lastTime ? new Date(lastTime).toLocaleString("id-ID") : "-"}
@@ -606,6 +740,7 @@ export default function Dashboard() {
                 margin: "0 auto",
               }}
             />
+
             <div
               style={{
                 background: "white",
@@ -654,6 +789,7 @@ export default function Dashboard() {
 
         <div style={{ fontWeight: 800, color: "#334155", textAlign: "right" }}>
           <div>{selectedAthlete || "All athletes"}</div>
+
           <div style={{ color: "#0369a1", marginTop: 4 }}>
             {selectedAthlete
               ? `${athleteDistance}/${totalDistance} KM`
@@ -665,7 +801,17 @@ export default function Dashboard() {
   );
 }
 
-function PanelTitle({ title }: { title: string }) {
+function PanelTitle({
+  title,
+  isOpen,
+  onClose,
+  onOpen,
+}: {
+  title: string;
+  isOpen: boolean;
+  onClose: () => void;
+  onOpen: () => void;
+}) {
   return (
     <div
       style={{
@@ -674,25 +820,63 @@ function PanelTitle({ title }: { title: string }) {
         fontWeight: 700,
         borderTop: "1px solid #cbd5e1",
         borderBottom: "1px solid #cbd5e1",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
       }}
     >
-      {title}
+      <span>{title}</span>
+
+      {isOpen ? (
+        <button onClick={onClose} style={miniCloseButton}>
+          ×
+        </button>
+      ) : (
+        <button onClick={onOpen} style={miniOpenButton}>
+          Show
+        </button>
+      )}
     </div>
   );
 }
 
-function PoiItem({ label }: { label: string }) {
+function PoiItem({
+  label,
+  detail,
+  active,
+  onClick,
+}: {
+  label: string;
+  detail: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div
+    <button
+      onClick={onClick}
       style={{
+        width: "100%",
+        textAlign: "left",
         padding: "13px 14px",
+        border: "none",
         borderBottom: "1px solid #e2e8f0",
-        background: "white",
+        background: active ? "#dbeafe" : "white",
         fontWeight: 700,
+        cursor: "pointer",
       }}
     >
       🏁 {label}
-    </div>
+      <div
+        style={{
+          marginTop: 4,
+          color: "#64748b",
+          fontSize: 12,
+          fontWeight: 500,
+        }}
+      >
+        {detail}
+      </div>
+    </button>
   );
 }
 
@@ -707,6 +891,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
       }}
     >
       <div style={{ color: "#94a3b8", fontSize: 13 }}>{label}</div>
+
       <div
         style={{
           color: "white",
@@ -763,4 +948,18 @@ const miniOpenButton = {
   cursor: "pointer",
   fontWeight: 700,
   fontSize: 12,
+};
+
+const closeFloatingButton = {
+  position: "absolute" as const,
+  top: 10,
+  right: 12,
+  width: 30,
+  height: 30,
+  borderRadius: "999px",
+  border: "none",
+  background: "rgba(255,255,255,.15)",
+  color: "white",
+  fontWeight: 900,
+  cursor: "pointer",
 };

@@ -12,6 +12,7 @@ import {
   CircleMarker,
   useMap,
 } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 const LeafletMap = MapContainer as any;
 
@@ -24,9 +25,31 @@ const colors = [
   "#14b8a6",
   "#eab308",
   "#ec4899",
-  "#06b6d4",
-  "#84cc16",
 ];
+
+function FocusPoi({ selectedPoi }: any) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedPoi?.point) return;
+
+    const [lat, lng] = selectedPoi.point;
+
+    map.flyTo([Number(lat), Number(lng)], 17, {
+      duration: 1.2,
+    });
+
+    L.popup()
+      .setLatLng([Number(lat), Number(lng)])
+      .setContent(`
+        <b>${selectedPoi.label}</b><br/>
+        ${selectedPoi.detail || ""}
+      `)
+      .openOn(map);
+  }, [selectedPoi, map]);
+
+  return null;
+}
 
 function createAthleteIcon(label: string, color: string, selected: boolean) {
   return L.divIcon({
@@ -72,8 +95,8 @@ function createPoiIcon(label: string) {
         ${label}
       </div>
     `,
-    iconSize: [70, 30],
-    iconAnchor: [35, 15],
+    iconSize: [80, 30],
+    iconAnchor: [40, 15],
   });
 }
 
@@ -83,11 +106,9 @@ function AutoFollow({ athlete }: any) {
   useEffect(() => {
     if (!athlete) return;
 
-    map.flyTo(
-      [Number(athlete.latitude), Number(athlete.longitude)],
-      16,
-      { duration: 1.1 }
-    );
+    map.flyTo([Number(athlete.latitude), Number(athlete.longitude)], 16, {
+      duration: 1.1,
+    });
   }, [athlete, map]);
 
   return null;
@@ -153,22 +174,25 @@ function AnimatedMarker({ item, icon, onClick }: any) {
       <Popup>
         <strong>{item.athlete_name}</strong>
         <br />
-        Speed: {item.speed || 0} km/h
+        Speed: {item.speed || item.speed_kmh || 0} km/h
         <br />
         Lat: {item.latitude}
         <br />
         Lng: {item.longitude}
         <br />
-        {new Date(item.timestamp).toLocaleString("id-ID")}
+        {item.timestamp
+          ? new Date(item.timestamp).toLocaleString("id-ID")
+          : "-"}
       </Popup>
     </Marker>
   );
 }
 
 export default function MapClient({
-  data,
-  selectedAthlete,
-  route,
+  data = [],
+  selectedAthlete = "",
+  route = [],
+  selectedPoi = null,
   onSelectAthlete,
 }: any) {
   const fallbackRoute: [number, number][] = [
@@ -181,17 +205,19 @@ export default function MapClient({
   ];
 
   const raceRoute: [number, number][] =
-    route && route.length > 0 ? route : fallbackRoute;
+    Array.isArray(route) && route.length > 0 ? route : fallbackRoute;
 
-  const validData = data.filter(
-    (item: any) =>
-      item &&
-      item.athlete_name &&
-      item.latitude !== null &&
-      item.longitude !== null &&
-      !Number.isNaN(Number(item.latitude)) &&
-      !Number.isNaN(Number(item.longitude))
-  );
+  const validData = Array.isArray(data)
+    ? data.filter(
+        (item: any) =>
+          item &&
+          item.athlete_name &&
+          item.latitude !== null &&
+          item.longitude !== null &&
+          !Number.isNaN(Number(item.latitude)) &&
+          !Number.isNaN(Number(item.longitude))
+      )
+    : [];
 
   const latestMap = new globalThis.Map<string, any>();
 
@@ -217,8 +243,7 @@ export default function MapClient({
     .filter((item: any) => item.athlete_name === selectedAthlete)
     .sort(
       (a: any, b: any) =>
-        new Date(a.timestamp).getTime() -
-        new Date(b.timestamp).getTime()
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     )
     .map((item: any) => [Number(item.latitude), Number(item.longitude)]);
 
@@ -236,10 +261,13 @@ export default function MapClient({
       }}
       zoomControl={true}
     >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
 
       <FitRoute route={raceRoute} />
-
+      <FocusPoi selectedPoi={selectedPoi} />
       <Polyline
         positions={raceRoute}
         pathOptions={{ color: "#16a34a", weight: 6, opacity: 0.85 }}
@@ -299,6 +327,7 @@ export default function MapClient({
 
       {latestPerAthlete.map((item: any, index: number) => {
         const isSelected = item.athlete_name === selectedAthlete;
+
         const icon = createAthleteIcon(
           `${index + 1}. ${item.athlete_name}`,
           colors[index % colors.length],
