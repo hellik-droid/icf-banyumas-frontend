@@ -57,7 +57,28 @@ function createCheckpointIcon(label: string) {
     iconAnchor: [40, 17],
   });
 }
-
+function createAthleteIcon(name: string) {
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="
+        background:#2563eb;
+        color:white;
+        padding:7px 12px;
+        border-radius:999px;
+        font-weight:900;
+        font-size:12px;
+        border:3px solid white;
+        box-shadow:0 8px 20px rgba(0,0,0,.35);
+        white-space:nowrap;
+      ">
+        🚴 ${name}
+      </div>
+    `,
+    iconSize: [120, 34],
+    iconAnchor: [20, 17],
+  });
+}
 function FitRoute({ route }: any) {
   const map = useMap();
   const hasFit = useRef(false);
@@ -232,6 +253,7 @@ export default function MapClient({
         <Marker
           key={item.athlete_name}
           position={[Number(item.latitude), Number(item.longitude)]}
+          icon={createAthleteIcon(item.athlete_name)}
           eventHandlers={{
             click: () => onSelectAthlete(item.athlete_name),
           }}
